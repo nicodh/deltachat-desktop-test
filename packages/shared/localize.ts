@@ -4,6 +4,7 @@ const log = getLogger('localize')
 
 export interface LocaleData {
   locale: string
+  dir: 'ltr' | 'rtl'
   messages: {
     [key: string]: {
       [P in Intl.LDMLPluralRule]?: string
@@ -13,18 +14,12 @@ export interface LocaleData {
   }
 }
 
-// Solution to typescript thinking our variants can be just combined into the type string
-// adapted from https://github.com/sindresorhus/type-fest/blob/cabce984e5c19558f2f0061c3cd9488a945f60e6/source/literal-union.d.ts
-export type LiteralUnion<LiteralType> =
-  | LiteralType
-  | (string & Record<never, never>)
-
 // 'other' should exists for all languages (source?)
 // https://www.unicode.org/cldr/charts/43/supplemental/language_plural_rules.html
 type getMessageOptions = { quantity?: 'other' | number }
 
 export type getMessageFunction = (
-  key: LiteralUnion<TranslationKey>,
+  key: TranslationKey,
   substitutions?: string | string[],
   raw_opts?: 'other' | getMessageOptions
 ) => string
@@ -47,11 +42,11 @@ export function translate(
     // Before you ask, yes, _all_ languages have 'other' (source?)
     log.errorWithoutStackTrace(err)
 
-    pluralRules = new Intl.PluralRules('en_US')
+    pluralRules = new Intl.PluralRules('en')
   }
 
   function getMessage(
-    key: LiteralUnion<TranslationKey>,
+    key: TranslationKey,
     substitutions?: string | string[],
     raw_opts?: 'other' | getMessageOptions
   ) {
@@ -116,16 +111,29 @@ export function translate(
         substitutions = [substitutions]
       }
 
-      let c = 0
-      return message.replace(/(?:%\d\$[\w\d])|(?:%[\w\d])/g, () => {
+      let counter = -1
+      return message.replace(/(?:%\d\$[\w\d])|(?:%[\w\d])/g, f => {
+        counter++
+        if (f.length > 2) {
+          const index = Number.parseInt(f[1]) - 1
+          if (
+            substitutions === undefined ||
+            typeof substitutions[index] === 'undefined'
+          ) {
+            log.error(`Missing ${index} argument for key %c'${translationKey}'`)
+            return ''
+          }
+          return substitutions[index].toString()
+        }
+        // TODO find out if there is a case with multiple substitutionsand quantity
         if (
           substitutions === undefined ||
-          typeof substitutions[c] === 'undefined'
+          typeof substitutions?.[counter] === 'undefined'
         ) {
-          log.error(`Missing ${c} argument for key %c'${translationKey}'`)
+          log.error(`Missing ${0} argument for key %c'${translationKey}'`)
           return ''
         }
-        return substitutions[c++].toString()
+        return substitutions[counter].toString()
       })
     }
 

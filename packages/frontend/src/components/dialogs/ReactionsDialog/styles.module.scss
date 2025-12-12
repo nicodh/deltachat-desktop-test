@@ -1,11 +1,12 @@
-@import '../../../../scss/mixins';
+@use '../../../../scss/mixins';
 
 .reactionsDialogList {
   margin: 0;
+  margin-bottom: 1rem;
 }
 
 .reactionsDialogListItem {
-  @include button-reset;
+  @include mixins.button-reset;
 
   width: 100%;
   align-items: center;
@@ -28,7 +29,7 @@
 
 .reactionsDialogContactName {
   flex: 1;
-  margin-right: 10px;
+  margin-inline-end: 10px;
   overflow: hidden;
 }
 

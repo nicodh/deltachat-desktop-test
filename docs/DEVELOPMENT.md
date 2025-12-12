@@ -8,9 +8,11 @@
   - [Table of Contents](#table-of-contents)
   - [How to Contribute ](#how-to-contribute-)
     - [Run the Code ](#run-the-code-)
+      - [Running multiple versions/instances locally](#running-multiple-versionsinstances-locally)
     - [Code Style ](#code-style-)
       - [Checking Code Style](#checking-code-style)
       - [Fixing Code Style](#fixing-code-style)
+    - [CI github actions](#ci-github-actions)
     - [Tests ](#tests-)
       - [E2E testing ](#e2e-testing-)
     - [Translations ](#translations-)
@@ -57,6 +59,14 @@ After making your changes, go in the deltachat/electron Dev-console and press `F
 
 > **Note:** this only applies to the frontend code in `src/renderer`. To build the main process you still need to use `pnpm -w build:electron` and then restart the deltachat-desktop process. (`pnpm -w start:electron`)
 
+#### Running multiple versions/instances locally
+
+Per default (at least on linux) the local build uses the default config & account dir that also your installed desktop app uses (except for flatpak/AppImage). That might result in an error message when building the local app "Only one instance allowed. Quitting"
+
+You can define a different config dir by setting an env var DC_TEST_DIR in an .env file. See [.env.example](../packages/target-electron/.env.example)
+
+Be aware that the order matters: if the installed app is running you can start another instance with a different config dir. But if a local instances is running you can't start the installed app.
+
 ### Code Style <a id="code-style"></a>
 
 #### Checking Code Style
@@ -72,7 +82,6 @@ This command in turn splits up into the following commands:
 - `pnpm -w check:types` -> Runs `tsc` to make sure the `TypeScript` code is ok
 - `pnpm -w check:lint` -> Runs [`eslint`](https://eslint.org) with [`TypeScript`](https://typescriptlang.org/) rules to check for common bad practices in all `.js`, `.ts` and `.tsx` files
 - `pnpm -w check:format` -> Runs [`Prettier`](https://prettier.io/) with rules inspired by [`StandardJS`](https://standardjs.com/) to check formatting in all `.scss`, `.js`, `.ts`, `.tsx`, `.json` and `.md` files
-- `pnpm -w check:log-conventions` -> checks for illegal use of `console.log()`
 
 Sometimes `eslint` complains on code lines that for whatever reason doesn't fit well with the project style. Lines like this can be ignored by using `// eslint-disable-next-line` on the line prior to the line you would like to ignore:
 
@@ -81,7 +90,7 @@ Sometimes `eslint` complains on code lines that for whatever reason doesn't fit 
 const unused_var = 'This line would normally trigger some linting errors'
 ```
 
-We set up the linting using this [`guide`](https://github.com/typescript-eslint/typescript-eslint/blob/master/docs/getting-started/linting/README.md)
+The configuration for eslint is documented here: https://eslint.org/docs/latest/use/configure/configuration-files
 
 If you work with SCSS make sure you read [`docs/STYLES.md`](./STYLES.md)
 
@@ -103,6 +112,13 @@ This command in turn splits up into the following commands:
 - `pnpm -w fix:format` -> Runs [`Prettier`](https://prettier.io/) to attempt fixing formatting in all `.scss`, `.js`, `.ts`, `.tsx`, `.json` and `.md` files
 
 If you're unsure it's always safe to run `pnpm -w fix` to fix everything. If you know what you're doing you can run the lower level commands for a more fine grained fix.
+
+### CI github actions
+
+We have several [github actions](../.github/workflows/) configured to be executed for each PR. These include code validation, tests and preview builds which are downloadable from the artifacts.
+Previews can be uploaded to https://download.delta.chat/desktop/preview/ by adding a line "#public-preview" to the PR description. This also works if the line is added later, since the upload step is triggered on "edit" also.
+
+The code validation includes a check if the Changelog has a new entry for the PR. That can be skipped (if reasonable) by adding the keyword "#skip-changelog" in the description, ideally followed by a reason for skipping
 
 ### Tests <a id="tests"></a>
 

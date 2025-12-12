@@ -4,10 +4,21 @@ import React, { useEffect, useRef } from 'react'
 import styles from './styles.module.scss'
 import { runtime } from '@deltachat-desktop/runtime-interface'
 
+// same as $default-dialog-width variable in styles
 const DEFAULT_WIDTH = 500
 
 type Props = React.PropsWithChildren<{
-  onClose?: (result?: any) => void
+  /**
+   * This will be invoked when the dialog is closed e.g. with
+   * outside click ({@linkcode canOutsideClickClose})
+   * or {@linkcode canEscapeKeyClose}.
+   *
+   * You must respect this callback and unrender this component
+   * when the callback is invoked, otherwise it can so happen
+   * that this component is rendered, but the dialog is not acutally visible
+   * (this has to do with `showModal`).
+   */
+  onClose: ((result?: any) => void) | undefined
   canEscapeKeyClose?: boolean
   canOutsideClickClose?: boolean
   /** whether backdrop can be used to drag window around on tauri, used on onboarding screen and deletion screen */
@@ -19,6 +30,13 @@ type Props = React.PropsWithChildren<{
   // takes full screen and is transparent
   unstyled?: boolean
   dataTestid?: string
+  /**
+   * per default the first element in a modal dialog is focused
+   * but we remove that focus if the first element is a button or
+   * a 'button like' element to avoid unexpected behaviours
+   * set this to true to keep the default focus behavior also for buttons
+   */
+  allowDefaultFocus?: boolean
 }>
 
 const Dialog = React.memo<Props>(
@@ -30,6 +48,7 @@ const Dialog = React.memo<Props>(
     width = DEFAULT_WIDTH,
     height,
     unstyled = false,
+    allowDefaultFocus = false,
     ...props
   }) => {
     const dialog = useRef<HTMLDialogElement>(null)
@@ -72,12 +91,33 @@ const Dialog = React.memo<Props>(
         ev.preventDefault()
       }
     }
+    const onKeyDown = (ev: React.KeyboardEvent) => {
+      if (ev.code === 'Escape') {
+        onCancel(ev)
+      }
+    }
 
     useEffect(() => {
       // calling showModal is "only" the way to have ::backdrop
       dialog.current?.showModal()
       dialog.current!.style.display = 'flex'
-    })
+      if (!allowDefaultFocus && document.activeElement instanceof HTMLElement) {
+        const tagName = document.activeElement.tagName.toLowerCase()
+        const isButtonLikeInput =
+          tagName === 'input' &&
+          ['submit', 'button', 'image', 'reset'].includes(
+            (document.activeElement as HTMLInputElement).type
+          )
+
+        if (
+          (tagName === 'button' || isButtonLikeInput) &&
+          !document.activeElement.hasAttribute('autofocus')
+        ) {
+          // Remove focus from auto-focused buttons or button like elements
+          document.activeElement.blur()
+        }
+      }
+    }, [allowDefaultFocus])
 
     let style
 
@@ -87,12 +127,12 @@ const Dialog = React.memo<Props>(
         height: height && `${height}px`,
       }
     }
-
     return (
       <dialog
         onClick={onClick}
         onClose={onClose}
         onCancel={onCancel}
+        onKeyDown={onKeyDown}
         ref={dialog}
         data-no-drag-region
         data-tauri-drag-region={

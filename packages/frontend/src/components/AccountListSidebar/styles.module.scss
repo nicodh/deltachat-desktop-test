@@ -1,5 +1,6 @@
-@import '../../../scss/variables';
-@import '../../../scss/mixins';
+@use 'sass:map';
+@use '../../../scss/variables';
+@use '../../../scss/mixins';
 
 .avatar {
   --local-avatar-size: 48px;
@@ -38,6 +39,8 @@
 
 .accountListSidebar {
   --accountSidebarBg: #2c2c2c;
+  --accountSidebarIconColor: #bcbcbc;
+  --accountSidebarIconColorHover: #efefef;
 
   background-color: var(--accountSidebarBg);
   display: flex;
@@ -45,37 +48,86 @@
   min-width: 68px;
   overflow: hidden;
 
-  .accountList {
-    --als-avatar-size: 42px;
-    --als-avatar-margin: 5px;
-    --als-active-indicator-color: white;
-
-    align-items: center;
-    display: flex;
-    flex-direction: column;
+  .accountListNav {
     flex-grow: 1;
     overflow-y: scroll;
-    padding-top: 2px;
-
     scrollbar-width: none;
     &::-webkit-scrollbar {
       width: 0;
     }
+
+    .accountList {
+      --als-avatar-size: 42px;
+      --als-avatar-margin: 5px;
+      --als-active-indicator-color: white;
+
+      margin: 0;
+      padding: 0;
+      list-style: none;
+
+      align-items: center;
+      display: flex;
+      flex-direction: column;
+      padding-top: 2px;
+      li:has(.accountWrapper.isSticky) {
+        // Styles for the li element when it contains a sticky account
+        position: sticky;
+        bottom: var(--als-avatar-margin);
+        top: var(--als-avatar-margin);
+        // Only needed when this account is scrolled _above_ the visible region.
+        z-index: map.get(
+          variables.$z-index,
+          account-list-sidebar-scope-sticky-account
+        );
+      }
+    }
+  }
+
+  .accountWrapper {
+    margin-bottom: var(--als-avatar-margin);
+    margin-top: var(--als-avatar-margin);
+
+    &.isSticky {
+      .account {
+        .avatar {
+          opacity: 1;
+          .content {
+            box-shadow: 0px 0px 4px 2px #00000040;
+          }
+        }
+      }
+    }
   }
 
   .account {
+    display: block;
     border: none;
     background: none;
     padding: 0;
     text-align: start; // To align the "active" indicator
 
     height: var(--als-avatar-size);
-    margin-bottom: var(--als-avatar-margin);
-    margin-top: var(--als-avatar-margin);
-    scroll-margin-bottom: var(--als-avatar-margin);
-    scroll-margin-top: var(--als-avatar-margin);
+
+    // Adding extra `var(--als-avatar-size) + 2 * var(--als-avatar-margin)`
+    // to the margins so that
+    // if there is another `.isSticky` account, then that account does not
+    // cover the account that we want to scroll into view.
+    // And another extra `2 * var(--als-avatar-margin)` so that it's obvious that
+    // the other sticky account really is sticky, to make it obviously overlay
+    // on top of another account, and be positioned perfectly on top of it.
+    //
+    // TODO improvement: perhaps it makes sense to keep these at just
+    // `var(--als-avatar-margin)` in case there is no sticky account above.
+    // This should be achievable with CSS.
+    scroll-margin-bottom: calc(
+      5 * var(--als-avatar-margin) + var(--als-avatar-size)
+    );
+    scroll-margin-top: calc(
+      5 * var(--als-avatar-margin) + var(--als-avatar-size)
+    );
+
     position: relative;
-    z-index: $z-index-new-local-scope;
+    z-index: variables.$z-index-new-local-scope;
 
     .avatar {
       --local-avatar-size: var(--als-avatar-size);
@@ -132,12 +184,10 @@
   }
 
   .addButton {
-    --add-button-color: #808080;
-
     background: none;
     border-radius: 10%;
-    border: 1.3pt solid var(--add-button-color);
-    color: var(--add-button-color);
+    border: 1.3pt solid var(--accountSidebarIconColor);
+    color: var(--accountSidebarIconColor);
     font-size: 22px;
     margin-bottom: var(--als-avatar-margin);
     margin-top: var(--als-avatar-margin);
@@ -146,14 +196,35 @@
 
     &:hover {
       color: var(--accountSidebarBg);
-      background: var(--add-button-color);
+      background: var(--accountSidebarIconColorHover);
+      opacity: 0.7;
+    }
+  }
+
+  .settingsButton {
+    background-color: transparent;
+    border: 0;
+    height: 42px;
+    margin: 0;
+    padding: 0;
+    width: 42px;
+
+    .settingsButtonIcon {
+      background-color: var(--accountSidebarIconColor);
+    }
+
+    &:hover {
+      .settingsButtonIcon {
+        background-color: var(--accountSidebarIconColorHover);
+      }
     }
   }
 }
 
 .macOSTrafficLightBackground {
-  height: 20px;
+  height: 30px;
   flex-shrink: 0;
+  margin-bottom: -10px;
 }
 
 .buttonsContainer {
@@ -164,31 +235,15 @@
   padding: 8px 0;
 }
 
-.settingsButton {
-  background-color: transparent;
-  border: 0;
-  height: 42px;
-  margin: 0;
-  padding: 0;
-  width: 42px;
-
-  &:hover {
-    .settingsButtonIcon {
-      background-color: lightgray;
-    }
-  }
-}
-
-.settingsButtonIcon {
-  background-color: gray;
-}
-
 .accountBadge {
   bottom: -6px;
   pointer-events: none;
   position: absolute;
-  right: -5px;
-  z-index: map-get($z-index, account-list-sidebar-scope-account-badge);
+  inset-inline-end: -5px;
+  z-index: map.get(
+    variables.$z-index,
+    account-list-sidebar-scope-account-badge
+  );
 }
 
 .accountBadgeIcon {
@@ -214,7 +269,7 @@
 
 .accountMutedIconShadow {
   filter: drop-shadow(0 0 2px black);
-  left: 2px;
+  inset-inline-start: 2px;
   pointer-events: none;
   position: absolute;
   top: 2px;
@@ -226,7 +281,7 @@
 
 .accountHoverInfoContainer {
   position: absolute;
-  z-index: map-get($z-index, account-hover-info);
+  z-index: map.get(variables.$z-index, account-hover-info);
 }
 
 .accountHoverInfo {
@@ -265,4 +320,35 @@
   display: inline-block;
   text-align: center;
   width: 1em;
+}
+
+// Drag and drop styles
+.dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+  transition: all 0.2s ease;
+}
+
+.dragOverTop,
+.dragOverBottom {
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--colorPrimary);
+    z-index: 10;
+    border-radius: 1px;
+  }
+}
+
+.dragOverTop::before {
+  top: -2px;
+}
+
+.dragOverBottom::before {
+  bottom: -2px;
 }

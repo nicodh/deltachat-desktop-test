@@ -5,8 +5,10 @@ import styles from './style.module.scss'
 
 export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   active?: boolean
-  styling?: 'primary' | 'secondary' | 'danger'
-  dataTestid?: string
+  // borderless means button element has no border and transparent background
+  // and is of type button for accessibility reasons
+  styling?: 'primary' | 'danger' | 'borderless'
+  type?: 'button' | 'submit' | 'reset'
 }
 
 export default function Button({
@@ -18,6 +20,8 @@ export default function Button({
 }: ButtonProps) {
   return (
     <button
+      // eslint-disable-next-line react/button-has-type
+      type={props.type || 'button'}
       className={classNames(
         styles.button,
         active && styles.active,

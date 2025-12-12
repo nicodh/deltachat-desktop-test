@@ -98,6 +98,7 @@ function EditProfileDialogInner({
           <DeltaInput
             key='displayname'
             id='displayname'
+            dataTestId='displayname-input'
             placeholder={tx('pref_your_name')}
             value={displayname}
             onChange={(
@@ -125,16 +126,23 @@ function EditProfileDialogInner({
               }}
             />
           )}
+          <div className={styles.editProfileHint}>
+            {tx('pref_who_can_see_profile_explain')}
+          </div>
         </DialogContent>
       </DialogBody>
       <DialogFooter>
         <FooterActions>
           {!firstSetup && (
-            <FooterActionButton onClick={onCancel}>
+            <FooterActionButton onClick={onCancel} data-testid='cancel'>
               {tx('cancel')}
             </FooterActionButton>
           )}
-          <FooterActionButton onClick={onConfirm}>
+          <FooterActionButton
+            styling='primary'
+            onClick={onConfirm}
+            data-testid='ok'
+          >
             {tx('ok')}
           </FooterActionButton>
         </FooterActions>

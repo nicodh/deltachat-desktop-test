@@ -31,7 +31,6 @@ export default function ImageSelector({
   titleLabel,
 }: Props) {
   const tx = useTranslationFunction()
-  const imageUrl = filePath ? `file://${filePath}` : undefined
 
   const handleSelect = async () => {
     const { defaultPath, setLastPath } =
@@ -62,11 +61,13 @@ export default function ImageSelector({
       <div className={styles.imageSelector}>
         <LargeProfileImage
           color={color}
-          imageUrl={imageUrl}
+          imagePath={filePath || undefined}
           initials={initials}
+          disableFullscreen={false}
         />
-        {!imageUrl && (
+        {!filePath && (
           <button
+            type='button'
             title={selectLabel ? selectLabel : tx('profile_image_select')}
             aria-label={selectLabel ? selectLabel : tx('profile_image_select')}
             className={styles.imageSelectorButton}
@@ -75,8 +76,9 @@ export default function ImageSelector({
             <Icon className={styles.imageSelectorIcon} icon='image' />
           </button>
         )}
-        {imageUrl && (
+        {filePath && (
           <button
+            type='button'
             title={removeLabel ? removeLabel : tx('profile_image_delete')}
             aria-label={removeLabel ? removeLabel : tx('profile_image_delete')}
             className={styles.imageSelectorButton}

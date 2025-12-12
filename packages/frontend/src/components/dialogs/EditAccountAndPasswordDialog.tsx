@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react'
 
 import { BackendRemote } from '../../backend-com'
-import { Credentials } from '../../types-app'
-import LoginForm, {
-  ConfigureProgressDialog,
-  defaultCredentials,
-} from '../LoginForm'
+import LoginForm from '../LoginForm'
+import { defaultCredentials, Credentials } from '../Settings/DefaultCredentials'
+import { ConfigureProgressDialog } from './ConfigureProgressDialog'
 import Dialog, {
   DialogBody,
   DialogContent,
@@ -14,66 +12,72 @@ import Dialog, {
 } from '../Dialog'
 import useTranslationFunction from '../../hooks/useTranslationFunction'
 import useDialog from '../../hooks/dialog/useDialog'
-import useConfirmationDialog from '../../hooks/dialog/useConfirmationDialog'
 
 import type { DialogProps } from '../../contexts/DialogContext'
 import AlertDialog from './AlertDialog'
-import { selectedAccountId } from '../../ScreenController'
+import { T } from '@deltachat/jsonrpc-client'
+import { useSettingsStore } from '../../stores/settings'
 
-export default function EditAccountAndPasswordDialog({ onClose }: DialogProps) {
+type AccountAndPasswordDialogProps = DialogProps & {
+  addr?: string
+}
+
+/**
+ * uses a prefilled LoginForm with existing
+ * credentials to edit transport settings
+ */
+export default function EditAccountAndPasswordDialog({
+  onClose,
+  addr,
+}: AccountAndPasswordDialogProps) {
   const tx = useTranslationFunction()
+
+  const settingsStore = useSettingsStore()[0]
+  const isChatmail = settingsStore?.settings.is_chatmail === '1'
 
   return (
     <Dialog canOutsideClickClose={false} onClose={onClose}>
-      <DialogHeader title={tx('login_header')} />
-      {EditAccountInner(onClose)}
+      <DialogHeader
+        title={
+          isChatmail ? tx('edit_transport') : tx('manual_account_setup_option')
+        }
+      />
+      {EditAccountInner(onClose, addr)}
     </Dialog>
   )
 }
 
-function EditAccountInner(onClose: DialogProps['onClose']) {
-  const [initial_settings, setInitialAccountSettings] =
+function EditAccountInner(onClose: DialogProps['onClose'], addr?: string) {
+  const [initialSettings, setInitialAccountSettings] =
     useState<Credentials>(defaultCredentials())
 
-  const [accountSettings, _setAccountSettings] =
+  const [accountSettings, setAccountSettings] =
     useState<Credentials>(defaultCredentials())
 
   const { openDialog } = useDialog()
-  const openConfirmationDialog = useConfirmationDialog()
   const tx = useTranslationFunction()
-
-  const setAccountSettings = (value: Credentials) => {
-    _setAccountSettings(value)
-  }
 
   const loadSettings = async () => {
     if (window.__selectedAccountId === undefined) {
       throw new Error('can not load settings when no account is selected')
     }
-    const accountSettings: Credentials =
-      (await BackendRemote.rpc.batchGetConfig(window.__selectedAccountId, [
-        'addr',
-        'mail_pw',
-        'sentbox_watch',
-        'mvbox_move',
-        'only_fetch_mvbox',
-        'e2ee_enabled',
-        'mail_server',
-        'mail_user',
-        'mail_port',
-        'mail_security',
-        'imap_certificate_checks',
-        'send_user',
-        'send_pw',
-        'send_server',
-        'send_port',
-        'send_security',
-        'smtp_certificate_checks',
-        'proxy_enabled',
-        'proxy_url',
-      ])) as unknown as Credentials
+    const accountId = window.__selectedAccountId
+    const transports = await BackendRemote.rpc.listTransports(accountId)
+    if (transports.length === 0) {
+      throw new Error('no transport found')
+    }
+    const configuredAddress =
+      addr || (await BackendRemote.rpc.getConfig(accountId, 'configured_addr'))
+    const accountSettings: T.EnteredLoginParam | undefined = transports.find(
+      t => t.addr === configuredAddress
+    )
+
+    if (!accountSettings) {
+      throw new Error('configured transport not found in transport list')
+    }
+
     setInitialAccountSettings(accountSettings)
-    _setAccountSettings(accountSettings)
+    setAccountSettings(accountSettings)
   }
 
   useEffect(() => {
@@ -93,53 +97,15 @@ function EditAccountInner(onClose: DialogProps['onClose']) {
       })
     }
 
-    if (initial_settings.addr !== accountSettings.addr) {
-      const confirmed = await openConfirmationDialog({
-        confirmLabel: tx('perm_continue'),
-        isConfirmDanger: true,
-        message: tx('aeap_explanation', [
-          initial_settings.addr || '',
-          accountSettings.addr || '',
-        ]),
+    if (initialSettings.addr !== accountSettings.addr) {
+      openDialog(AlertDialog, {
+        message:
+          'Changing your email address is not supported right now. Check back in a few months!',
       })
-
-      if (!confirmed) {
-        return
-      }
-    } else if (
-      initial_settings.proxy_enabled !== accountSettings.proxy_enabled &&
-      accountSettings.proxy_enabled === '1'
-    ) {
-      try {
-        const qr = await BackendRemote.rpc.checkQr(
-          selectedAccountId(),
-          accountSettings.proxy_url
-        )
-        if (qr.kind !== 'proxy') {
-          openDialog(AlertDialog, {
-            message: tx('proxy_invalid'),
-          })
-          return
-        }
-      } catch (error) {
-        const errorStr =
-          error instanceof Error ? error.message : JSON.stringify(error)
-        openDialog(AlertDialog, {
-          message: tx('proxy_invalid') + '\n' + errorStr,
-        })
-        return
-      }
+      return
     }
     update()
-  }, [
-    accountSettings,
-    initial_settings.addr,
-    initial_settings.proxy_enabled,
-    onClose,
-    openConfirmationDialog,
-    openDialog,
-    tx,
-  ])
+  }, [accountSettings, initialSettings, onClose, openDialog])
 
   const onOk = useCallback(async () => {
     await onUpdate()

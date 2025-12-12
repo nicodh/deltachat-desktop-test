@@ -1,10 +1,8 @@
 .login-form {
-  button[type='submit'] {
-    margin-right: 1rem;
-  }
-
   p.text {
     color: var(--deltaChatPrimaryFgLight);
+    white-space: pre-line;
+    line-height: 20px;
   }
 
   p.delta-headline {
@@ -20,11 +18,14 @@
     width: 100%;
     margin-top: 30px;
     text-align: left;
+    &:dir(rtl) {
+      text-align: right;
+    }
     &:hover {
       cursor: pointer;
     }
     p {
-      margin-left: 8px;
+      margin-inline-start: 8px;
       display: -webkit-inline-box;
       position: relative;
       font-size: 18px;
@@ -35,13 +36,14 @@
     div.advanced-icon {
       width: 20px;
       height: 20px;
-      -webkit-mask: url(./images/dc-cross.svg) no-repeat center;
+      -webkit-mask: url(./images/icons/cross.svg) no-repeat center;
       -webkit-mask-size: 100%;
       background-color: var(--loginInputFocusColor);
       display: -webkit-inline-box;
+      transform: rotate(45deg);
 
       &.opened {
-        transform: rotate(45deg);
+        transform: rotate(0);
       }
     }
   }
@@ -83,7 +85,15 @@ div.delta-form-group {
     line-height: 13px;
     width: 100%;
     color: var(--deltaChatPrimaryFgLight);
-    &.focus {
+    &:not(.alwaysShow):has(~ input.isEmpty:not(:focus)),
+    &:not(.alwaysShow):has(~ textarea.isEmpty:not(:focus)) {
+      // A native placeholder is shown, we can hide the label
+      // so as to not duplicate the text.
+      visibility: hidden;
+    }
+  }
+  &:focus-within {
+    label {
       color: var(--loginInputFocusColor);
     }
   }
@@ -157,7 +167,7 @@ div.delta-form-group {
       border-radius: unset;
       background: none;
       box-shadow: none;
-      border-bottom: 2px solid var(--deltaChatPrimaryFgLight);
+      border-bottom: 1px solid var(--deltaChatPrimaryFgLight);
 
       &:focus {
         border-bottom-color: var(--loginInputFocusColor);
@@ -166,9 +176,6 @@ div.delta-form-group {
 
       &:focus::placeholder {
         color: transparent;
-      }
-      &::placeholder {
-        color: var(--deltaChatPrimaryFgLight);
       }
     }
   }
@@ -179,7 +186,7 @@ div.delta-form-group {
     margin-top: 5px;
     border: none;
     border-radius: 0px;
-    border-bottom: 2px solid;
+    border-bottom: 1px solid;
     border-bottom-color: var(--deltaChatPrimaryFgLight);
     background-color: transparent;
     color: var(--bp4InputText);
@@ -187,12 +194,16 @@ div.delta-form-group {
     font-family: inherit;
     box-shadow: none !important;
     resize: vertical;
+    field-sizing: content;
 
     &:focus,
     &:active {
       outline: none;
       border-bottom-color: var(--loginInputFocusColor);
       color: var(--loginInputFocusColor);
+      &::placeholder {
+        color: transparent;
+      }
     }
 
     &:hover {

@@ -65,7 +65,9 @@
     <string name="always_load_remote_images">Винаги да се зареждат отдалечените изображения</string>
     <string name="once">Веднъж</string>
     <string name="show_warning">Показване на предупреждение</string>
+    <!-- deprecated, UI must not offer an option to show the password -->
     <string name="show_password">Показване на паролата</string>
+    <!-- deprecated, UI must not offer an option to show the password -->
     <string name="hide_password">Скриване на паролата</string>
     <string name="not_now">Не сега</string>
     <string name="never">Никога</string>
@@ -105,6 +107,7 @@
         <item quantity="one">%dминута</item>
         <item quantity="other">%d минути</item>
     </plurals>
+
     <!-- Shown beside messages that are "N hours old". Prefer short strings, or well-known abbreviations. -->
     <plurals name="n_hours">
         <item quantity="one">%d час</item>
@@ -135,7 +138,6 @@
         <item quantity="one">%d избрани</item>
         <item quantity="other">%d избрани</item>
     </plurals>
-
     <string name="self">Аз</string>
     <string name="draft">Чернова</string>
     <string name="image">Изображение</string>
@@ -152,7 +154,7 @@
     <string name="voice_message">Гласово съобщение</string>
     <string name="forwarded">Препратено</string>
     <string name="forwarded_message">Препратено съобщение</string>
-    <!-- %1$s will be replaced by the name or the e-mail address of the person who forwards the message -->
+    <!-- %1$s will be replaced by the name of the person who forwarded the message -->
     <string name="forwarded_by">Препратен от %1$s</string>
     <string name="video">Видео</string>
     <string name="documents">Документи</string>
@@ -200,14 +202,8 @@
     <string name="menu_new_chat">Нов чат</string>
     <string name="menu_new_group">Нова група</string>
     <string name="clone_chat">Клониране на чат</string>
-    <!-- consider keeping the term "broadcast" as in WhatsApp or Telegram -->
-    <string name="broadcast_list">Списък за разпространение</string>
-    <string name="broadcast_lists">Списъци за разпространение</string>
-    <string name="new_broadcast_list">Нов списък за разпространение</string>
+    <!-- deprecated -->
     <string name="add_recipients">Добавяне на получатели</string>
-    <string name="edit_broadcast_list">Редактиране на списък за разпространение</string>
-    <string name="broadcast_list_name">Име на списък за разпространение</string>
-    <string name="please_enter_broadcast_list_name">Моля, въведете име за списъка за разпространение</string>
     <string name="menu_send">Изпращане</string>
     <string name="menu_toggle_keyboard">Включване/изключване на Emoji клавиатура</string>
     <string name="menu_edit_group">Редактиране на група</string>
@@ -220,7 +216,6 @@
     <string name="menu_delete_chat">Изтриване на чата</string>
     <!-- Command to delete all messages in a chat. The chat itself will not be deleted but will be empty afterwards, so make sure to be different from "Delete Chat" here. "Clear" is a verb here, "Empty Chat" would also be fine (eg. in German "Chat leeren") -->
     <string name="clear_chat">Изчистване на чата</string>
-    <string name="menu_delete_messages">Изтриване на съобщения</string>
     <string name="delete_contact">Изтриване на контакт</string>
     <string name="menu_delete_location">Да бъде ли изтрито това местоположение?</string>
     <string name="menu_message_details">Детайли на съобщение</string>
@@ -253,6 +248,7 @@
     <string name="menu_scroll_to_bottom">Превъртане до дъното</string>
     <string name="menu_scroll_to_top">Превъртане до върха</string>
     <string name="menu_help">Помощ</string>
+    <!-- use the same term for "Apps" as elsewhere -->
     <string name="what_is_webxdc">Какво е Webxdc?</string>
     <string name="privacy_policy">Политика за поверителност</string>
     <string name="menu_select_all">Избор на всичко</string>
@@ -267,7 +263,6 @@
     <string name="menu_save_log">Запис на дневник</string>
     <string name="menu_more_options">Още опции</string>
     <string name="menu_learn_spelling">Запомняне на правописа</string>
-    <string name="menu_chat_audit_log">Одитен дневник на чатовете</string>
     <string name="jump_to_message">Към съобщение</string>
     <string name="copy_json">Копиране на JSON</string>
     <string name="replace_draft">Замяна на чернова</string>
@@ -291,9 +286,8 @@
     <!-- Menu item beside an app/chat that adds an icon to the system's home screen. If the user taps that icon, the app/chat is opened directly. -->
     <string name="add_to_home_screen">Добавяне към началния екран</string>
     <string name="donate">Дарение</string>
-
     <string name="mute_for_one_hour">Спиране на звука за 1 час</string>
-    <string name="mute_for_two_hours">Спиране на звука за 2 часа</string>
+    <string name="mute_for_eight_hours">Спиране на звука за 8 часа</string>
     <string name="mute_for_one_day">Спиране на звука за 1 ден</string>
     <string name="mute_for_seven_days">Спиране на звука за 7 дни</string>
     <string name="mute_forever">Спиране на звука за постоянно</string>
@@ -310,34 +304,7 @@
     </plurals>
     <string name="file_saved_to">Файлът е записан в \"%1$s\"</string>
 
-    <string name="videochat">Видеочат</string>
-    <string name="videochat_invite_user_to_videochat">Да бъде ли поканен%1$s във видеочат?</string>
-    <string name="videochat_invite_user_hint">За това се изисква съвместимо приложение или браузър от двете страни.</string>
-    <string name="videochat_contact_invited_hint">%1$s е поканен във видеочат.</string>
-    <string name="videochat_you_invited_hint">Изпратихте покана за видеочат.</string>
-    <string name="videochat_tap_to_join">Докоснете, за да се присъедините</string>
-    <string name="videochat_tap_to_open">Докоснете, за да отворите</string>
-    <string name="videochat_instance">Сървър за видеочат</string>
-    <string name="videochat_instance_placeholder">Вашият сървър за видеочат</string>
-    <!-- Do not translate "$ROOM", since it is a fixed token Delta Chat will replace with a generated room ID like "aOclju5eCky" -->
-    <string name="videochat_instance_example">Примери: https://meet.jit.si/$ROOM или basicwebrtc:https://вашият-сървър</string>
-    <string name="videochat_instance_explain_2">Ако настройката е разрешена, можете да започвате видеочат от всеки чат. Изисква съвместимо приложение или браузър и от двете страни.</string>
-    <string name="videochat_instance_from_qr">Да се използва ли \"%1$s\" за поканване на други към видеочатове?\n\nСлед като тази настройка бъде зададена, ще можете да започвате видеочат от всеки чат. Тя ще замени предишната настройка за видеочатове, ако има такава.</string>
-    <string name="videochat_invitation">Покана за видеочат</string>
-    <string name="videochat_invitation_body">Поканени сте във видеочат, натиснете върху%1$s, за да се присъедините</string>
-
-    <!-- get confirmations -->
-    <string name="ask_leave_group">Сигурни ли сте, че искате да напуснете тази група?</string>
-    <plurals name="ask_delete_chat">
-        <item quantity="one">Да бъде ли изтрит %d чат? Той повече няма да се показва в списъка с чатове, неговите съобщения ще останат на сървъра.</item>
-        <item quantity="other">Да бъдат ли изтрити%d чата? Те повече няма да се показват в списъка с чатове; техните съобщения ще останат на сървъра.</item>
-    </plurals>
-    <string name="ask_delete_named_chat">Сигурни ли сте, че искате да изтриете %1$s?</string>
-    <string name="ask_delete_message">Сигурни ли сте, че искате да изтриете това съобщение?</string>
-    <plurals name="ask_delete_messages">
-        <item quantity="one">Да бъде ли изтрито%dсъобщение тук и на сървъра?</item>
-        <item quantity="other">Да бъдат ли изтрити %d съобщения тук и на сървъра?</item>
-    </plurals>
+    <!-- Used for the deletion of Device messages -->
     <plurals name="ask_delete_messages_simple">
         <item quantity="one">Да бъде ли изтрито %d съобщение?</item>
         <item quantity="other">Да бъдат ли изтрити %d съобщения?</item>
@@ -349,21 +316,15 @@
     <string name="ask_unblock_contact">Да бъде ли отблокиран този контакт? Ще можете отново да получавате съобщения от него.</string>
     <string name="ask_delete_contacts">Да бъдат ли изтрити контактите?\n\nКонтактите с текущо провеждани чатове и контактите от системната адресна книга не могат да бъдат изтрити за постоянно.</string>
     <string name="ask_delete_contact">Да бъде ли изтрит контактът %1$s? Контактите с текущо провеждани чатове и контактите от системната адресна книга не могат да бъдат изтрити за постоянно.</string>
-    <string name="cannot_delete_contacts_in_use">Контактите с текущо провеждани чатове не могат да бъдат изтривани.</string>
     <string name="ask_start_chat_with">Чат с %1$s?</string>
-    <string name="ask_delete_value">Да бъде ли изтрит %s?</string>
     <!-- %1$s is replaced by a comma-separated list of names -->
     <string name="ask_remove_members">Премахване на %1$s от групата?</string>
-    <!-- %1$s is replaced by a comma-separated list of names -->
-    <string name="ask_remove_from_broadcast">Да бъдат ли премахнати %1$s от списъка за разпространение?</string>
     <string name="open_url_confirmation">Искате ли да отворите тази връзка?</string>
 
 
     <!-- contact list -->
     <string name="contacts_title">Контакти</string>
-    <string name="contacts_enter_name_or_email">Въведете име или адрес за електронна поща</string>
     <string name="contacts_type_email_above">Въведете адрес за електронна поща по-горе</string>
-    <string name="contacts_empty_hint">Няма контакти.</string>
 
 
     <!-- chatlist and chat view -->
@@ -385,7 +346,6 @@
     </plurals>
     <!-- The placeholder will be replaced by the name of the recipient in a one-to-one chat. -->
     <string name="chat_new_one_to_one_hint">Изпращане на съобщение до %1$s.</string>
-    <string name="chat_new_broadcast_hint">Получателите в един списък за разпространение получават съобщения в чат \"само за четене\" с Вас.</string>
     <string name="chat_new_group_hint">Другите ще виждат тази група едва след като изпратите първо съобщение.</string>
     <string name="chat_record_slide_to_cancel">Приплъзнете, за да откажете</string>
     <string name="chat_record_explain">Докоснете и задръжте, за да запишете гласово съобщение, отпуснете, за да го изпратите</string>
@@ -398,15 +358,14 @@
     <string name="chat_no_messages">Няма съобщения.</string>
     <string name="chat_self_talk_subtitle">Съобщения към себе си</string>
     <string name="archive_empty_hint">Архивираните чатове ще се показват тук.</string>
+    <!-- Action to add a message to "Saved Messages". The longer form (instead of "Save" only) is needed esp. on desktop to make clear this is not about saving a file to disk -->
+    <string name="save_message">Записване</string>
     <string name="saved_messages">Запазени съобщения</string>
     <string name="saved_messages_explain">• Препращайте съобщения тук за лесен достъп\n\n• Взимайте си текстови или гласови бележки\n\n• Прикрепяйте медийни файлове, за да ги запазите</string>
     <!-- Should match "Saved" from "Saved messages" -->
     <string name="saved">Запазено</string>
     <string name="save_as">Запазване като</string>
     <string name="retry_send">Нов опит за изпращане на съобщението</string>
-    <!-- reasons for a disabled message composer -->
-    <string name="messaging_disabled_not_in_group">Трябва да сте в тази група, за да изпратите съобщение. За да се присъедините, попитайте друг неин член.</string>
-    <string name="messaging_disabled_mailing_list">Изпращане на съобщения в пощенски списъци все още не се поддържа.</string>
     <string name="cannot_display_unsuported_file_type">Файл от тип %s не може да бъде показан</string>
     <string name="attachment_failed_to_load">Неуспешно зареждане на прикрепен файл</string>
     <!-- For recording Voice messages: Description for the "Lock" button allowing to lift the thumb from the record button while recording continues -->
@@ -430,10 +389,6 @@
     <string name="show_location_traces">Показване на съобщенията за проследяване</string>
     <string name="add_poi">Изпращане на място, представляващо интерес</string>
 
-    <!-- chat audit log -->
-    <string name="chat_audit_log_empty_message">Системните съобщения за този чат ще се появяват тук</string>
-    <string name="chat_audit_log_title">Одитен дневник на чата за %1$s</string>
-    <string name="chat_audit_log_description">Показва само системни и информационни съобщения; това е от полза, ако искаме да намерим последните чат действия, без да преминаваме през много на брой съобщения.</string>
 
     <!-- punycode warning / labeled links -->
     <!-- placeholder is domain/hostname that should be trusted -->
@@ -462,7 +417,6 @@
     <string name="group_self_not_in_group">Трябва да сте член на групата, за да изпълните това действие.</string>
     <string name="profile_encryption">Криптиране</string>
     <string name="profile_shared_chats">Споделени чатове</string>
-    <string name="related_chats">Свързани чатове</string>
     <string name="tab_contact">Контакт</string>
     <string name="tab_group">Група</string>
     <string name="tab_gallery">Галерия</string>
@@ -476,17 +430,13 @@
     <string name="tab_audio_empty_hint">Аудио файловете и гласовите съобщения, споделени в този чат, ще се появяват тук.</string>
     <string name="tab_webxdc_empty_hint">Приложенията, споделени в този чат, ще се появяват тук.</string>
     <string name="tab_all_media_empty_hint">Медийните файлове, споделени в кой да е чат, ще се появяват тук.</string>
+    <string name="all_apps_empty_hint">Приложенията, получени или изпратени в кой да е чат, ще се появяват тук.</string>
     <string name="media_preview">Предварителен преглед на медия файл</string>
     <!-- option to show images in the gallery with the correct width/height aspect (instead of square); other gallery apps may be a source of inspiration for translation :) -->
     <string name="aspect_ratio_grid">Мрежа, запазваща съотношенията</string>
     <!-- option to show images in the gallery as square (instead of using correct width/height) -->
     <string name="square_grid">Мрежа от квадрати</string>
     <string name="send_message">Изпращане на съобщение</string>
-    <!-- Placeholder %1$s will be replaced by the name of the contact changing their address. Placeholders %2$s and %3$s will be replaced by old/new email addresses. -->
-    <string name="aeap_addr_changed">%1$s промени своя адрес от %2$s на %3$s</string>
-    <!-- the explanation is shown (1) as a modal dialog with the buttons "Cancel" and "Continue" as well as (2) as a device message -->
-    <string name="aeap_explanation">Променихте своя email адрес от %1$s на %2$s.\n\nАко от тук нататък изпратите съобщение до проверена група, контактите в нея автоматично ще заменят стария с новия Ви адрес.\n\nСилно се препоръчва да извършите настройка в предишния си доставчик на електронна поща така, че всички email съобщения да се препращат към новия Ви email адрес. В противен случай е възможно да не получавате съобщения от контакти, които все още не са получили новия Ви адрес.</string>
-
 
     <!-- Multi Device -->
     <!-- "Second Device" can also be translated as "Another Device", if that is catchier in the destination language. However, make sure to use the term consistently. -->
@@ -496,14 +446,13 @@
     <string name="multidevice_install_dc_on_other_device">Инсталирайте Delta Chat на другото Ви устройство (https://get.delta.chat)</string>
     <!-- "I Already Have a Profile / Add as Second Device” should be the same text as defined by the keys onboarding_alternative_logins and multidevice_receiver_title -->
     <string name="multidevice_tap_scan_on_other_device">Стартирайте Delta Chat, докоснете \"Добавяне като допълнително устройство\" и сканирайте кода, показан тук</string>
-    <!-- Shown inside a "QR code card" with very limited space; please formulate the text as short as possible therefore. The placeholder will be replaced by name and/or address eg. "Scan to set up second device for Alice (alice@example.org)" -->
+    <!-- Shown inside a "QR code card" with very limited space; please formulate the text as short as possible therefore. The placeholder will be replaced by the profile name eg. "Scan to set up second device for Alice" -->
     <string name="multidevice_qr_subtitle">Сканирайте, за да установите допълнително устройство за %1$s</string>
     <string name="multidevice_receiver_title">Добавяне като допълнително устройство</string>
     <string name="multidevice_open_settings_on_other_device">На първото устройство, отидете на \"Настройки / Добавяне на допълнително устройство\" и сканирайте кода, показан тук</string>
     <string name="multidevice_receiver_scanning_ask">Да бъде ли копиран акаунтът от другото устройство в настоящото?</string>
     <string name="multidevice_abort">Да бъде ли прекъснато добавянето на второ устройство?</string>
     <string name="multidevice_abort_will_invalidate_copied_qr">QR кодът, копиран в клипборда, ще стане невалиден.</string>
-    <string name="multidevice_experimental_hint">(експериментална възможност, изисква се версия 1.36)</string>
     <string name="multidevice_transfer_done_devicemsg">ℹ️ Акаунтът е прехвърлен на второто Ви устройство.</string>
     <!-- Shown beside progress bar, stay short -->
     <string name="preparing_account">Акаунтът се подготвя...</string>
@@ -516,7 +465,7 @@
     <string name="incoming_messages">Входящи съобщения</string>
     <!-- Headline for the "Outbox" eg. in the "Connectivity" view -->
     <string name="outgoing_messages">Изходящи съобщения</string>
-    <!-- Headline in the "Connectivity" view. Placeholder will be replaced by the domain of the configured email-address. -->
+    <!-- Headline in the "Connectivity" view. Placeholder will be replaced by a domain -->
     <string name="storage_on_domain">Съхранение върху %1$s</string>
     <string name="connectivity">Свързаност</string>
     <!-- Shown in the title bar if the app is "Not connected"; prefer short strings. -->
@@ -530,7 +479,7 @@
     <string name="sending">Изпращане…</string>
     <string name="last_msg_sent_successfully">Последното съобщение беше изпратено успешно.</string>
     <string name="not_supported_by_provider">Не се поддържа от Вашия доставчик.</string>
-    <!-- Subtitle in quota context of "Connetivity" view. Should be be plural always, no number is prefixed. -->
+    <!-- Subtitle in quota context of "Connectivity" view. Should be be plural always, no number is prefixed. -->
     <string name="messages">Съобщения</string>
     <!-- Used for describing resource usage, resulting string will be eg. "1.2 GiB of 3 GiB used" -->
     <string name="part_of_total_used">Използвани са %1$s от %2$s</string>
@@ -541,7 +490,7 @@
     <string name="onboarding_create_instant_account">Създаване на нов профил</string>
     <!-- Secondary button on the welcome screen, allows to "Add as Second Device", "Restore from Backup"  -->
     <string name="onboarding_alternative_logins">Вече имам профил</string>
-    <!-- Button, allows to log in to existing email accounts, setting ports, passwords and so on -->
+    <!-- This is a button and a title, allowing to log in to existing, classic email accounts, setting ports, passwords and so on -->
     <string name="manual_account_setup_option">Вход в класическа електронна поща</string>
     <!-- Instant onboarding title (there is not more to do than to set name and avatar) -->
     <string name="instant_onboarding_title">Вашият профил</string>
@@ -556,22 +505,16 @@
     <string name="instant_onboarding_other_server">Списък със сървъри за чат поща</string>
     <!-- Hint about what happens when "Create Profile" button in pressed; the placeholder will be replaced by the group name -->
     <string name="instant_onboarding_group_info">Създайте профил, за да се присъедините към групата \"%1$s\".</string>
-    <!-- Hint about what happens when "Create Profile" button in pressed; the placeholder will be replaced by contact name and/or address -->
+    <!-- Hint about what happens when "Create Profile" button in pressed; the placeholder will be replaced by contact name -->
     <string name="instant_onboarding_contact_info">Създайте профил, за да обменяте съобщения с %1$s.</string>
     <!-- Question shown when another user's QR code is scanned from onboarding screen -->
     <string name="instant_onboarding_confirm_contact">Искате ли да създадете нов профил и да започнете да обменяте съобщения с %1$s?</string>
-    <!-- Question shown when group's QR code is scanned from onboarding screen -->
+    <!-- Question shown when group's/channel's QR code is scanned from onboarding screen -->
     <string name="instant_onboarding_confirm_group">Искате ли да създадете нов профил и да се присъедините към чат групата \"%1$s\"?</string>
 
     <string name="welcome_chat_over_email">Защитен децентрализиран чат</string>
     <string name="scan_invitation_code">Сканиране на код за покана</string>
     <string name="login_title">Влизане</string>
-    <!-- for classic email, we use the classical term "Account" -->
-    <string name="login_header">Влизане във Вашия акаунт за електронна поща</string>
-    <!-- for classic email, we use the classical term "Account" -->
-    <string name="login_explain">Влизане със съществуващ акаунт за електронна поща</string>
-    <string name="login_subheader">За известните доставчици на електронна поща допълнителните настройки се попълват автоматично. Понякога е необходимо да се разреши IMAP в уеб настройките. Потърсете помощ от Вашия доставчик на електронна поща или приятели.</string>
-    <string name="login_no_servers_hint">Delta Chat няма сървъри, Вашите данни стоят на Вашето устройство.</string>
     <string name="login_inbox">Входящи</string>
     <string name="login_imap_login"> Име за влизане на IMAP</string>
     <string name="login_imap_server">IMAP сървър</string>
@@ -583,17 +526,6 @@
     <string name="login_smtp_server">SMTP сървър</string>
     <string name="login_smtp_port">SMTP порт</string>
     <string name="login_smtp_security">Сигурност на SMTP връзката</string>
-    <string name="login_auth_method">Метод за оторизация</string>
-    <!-- deprecated -->
-    <string name="login_socks5">SOCKS5</string>
-    <string name="login_socks5_use_socks5">Да се използва SOCKS5</string>
-    <string name="login_socks5_host">SOCKS5 хост</string>
-    <string name="login_socks5_port">SOCKS5 порт</string>
-    <string name="login_socks5_user">SOCKS5 потребител</string>
-    <string name="login_socks5_password">SOCKS5 парола</string>
-
-    <string name="login_info_oauth2_title">Да се продължи ли с опростената настройка?</string>
-    <string name="login_info_oauth2_text">Въведеният адрес за електронна поща поддържа опростена настройка (OAuth 2.0).\n\nНа следващата стъпка, моля позволете на Delta Chat да действа в качеството си на избраното от Вас приложение за чат върху електронна поща.\n\nDelta Chat няма сървъри, Вашите данни стоят на Вашето устройство.</string>
     <string name="login_certificate_checks">Проверки на сертификатите</string>
     <string name="login_error_mail">Моля, въведете валиден адрес за електронна поща</string>
     <string name="login_error_server">Моля, въведете валиден адрес / IP адрес на сървър</string>
@@ -601,8 +533,8 @@
     <string name="login_error_required_fields">Моля, въведете валиден адрес за електронна поща и парола</string>
     <string name="import_backup_title">Възстановяване от резервно копие</string>
     <string name="import_backup_ask">Открито е резервно копие в \"%1$s\".\n\n Искате ли да импортирате и използвате всички данни и настройки от него?</string>
-    <string name="import_backup_no_backup_found">Не са открити резервни копия.\n\nКопирайте резервното копие в \"%1$s\" и опитайте отново. Като алтернатива натиснете \"Започване на обмен на съобщения\", за да продължите с нормалния процес на настройка.</string>
-    <!-- Translators: %1$s will be replaced by the e-mail address -->
+    <string name="import_backup_no_backup_found">Не са открити резервни копия.\n\nКопирайте резервното копие в \"%1$s\" и опитайте отново.</string>
+    <!-- %1$s will be replaced by the failing address -->
     <string name="login_error_cannot_login">Не можете да влезете като \"%1$s\". Моля, проверете дали адресът за електронна поща и паролата са правилни. </string>
     <!-- TLS certificate checks -->
     <string name="accept_invalid_certificates">Да бъдат приемани невалидните сертификати</string>
@@ -633,11 +565,9 @@
     <string name="pref_profile_photo">Изображение на профила</string>
     <string name="pref_blocked_contacts">Блокирани контакти</string>
     <string name="blocked_empty_hint">Блокираните контакти ще се появяват тук.</string>
-    <!-- for classic email, we use the classical term "Account" -->
-    <string name="pref_password_and_account_settings">Парола и акаунт</string>
     <string name="pref_who_can_see_profile_explain">Изображението, името и подписът от Вашия профил ще бъдат изпратени заедно с Вашите съобщения, когато общувате с други потребители.</string>
     <string name="pref_your_name">Вашето име</string>
-    <!-- Translators: Visible only to recipients who DO NOT use Delta Chat, so it's the last line in an E-mail and not a "Status". -->
+    <!-- Label of the Bio/Signature/Status/Motto field -->
     <string name="pref_default_status_label">Текст на подписа</string>
     <string name="pref_enter_sends">Клавишът Enter изпраща</string>
     <string name="pref_enter_sends_explain">Натискането на клавиша Enter ще изпраща текстовите съобщения</string>
@@ -675,13 +605,6 @@
     <string name="pref_server">Сървър</string>
     <string name="pref_encryption">Криптиране</string>
     <string name="pref_manage_keys">Управление на ключове</string>
-    <string name="pref_use_system_emoji">Да се използва Emoji на системата</string>
-    <string name="pref_use_system_emoji_explain">Изключване на вградената поддръжка за Emoji на Delta Chat</string>
-    <string name="pref_use_inapp_camera">Да се използва камерата вътре в приложението</string>
-    <string name="pref_use_inapp_camera_explain">Камерата в приложението обикновено има по-малко възможности от системната камера</string>
-    <string name="pref_show_system_contacts">Прочитане на системната адресна книга</string>
-    <string name="pref_show_system_contacts_explain">Да се предлага създаване на чатове с контакти от адресната книга. За някои доставчици е необходимо първо да се настрои криптиране от край до край.</string>
-    <string name="pref_app_access">Достъп до приложението</string>
     <string name="pref_chats">Чатове</string>
     <string name="pref_in_chat_sounds">Звуци в чата</string>
     <string name="pref_view_log">Разглеждане на дневника</string>
@@ -692,41 +615,23 @@
     <string name="pref_backup">Резервно копие</string>
     <string name="pref_backup_explain">Резервните копия на чатовете да се създават във външно място за съхранение</string>
     <string name="pref_backup_export_explain">Резервното копие помага да установите нова инсталация на това или друго устройство.\n\nТо ще съдържа всички съобщения, контакти и чатове и Вашата настройка \"от край до край\" на Autocrypt. Пазете файла на резервното копие на сигурно място или го изтрийте колкото е възможно по-скоро.</string>
-    <!-- the placeholder will be replaced by the name of the profile's email address -->
-    <string name="pref_backup_export_x">Експортиране на %1$s</string>
     <!-- the placeholder will be replaced by the number of profiles to export; the number is always larger than 1 -->
     <string name="pref_backup_export_all">Експортиране на всички %1$d профила</string>
     <string name="pref_backup_export_start_button">Започване на създаването на резервно копие</string>
     <string name="pref_backup_written_to_x">Резервното копие е успешно записано в \"%1$s\".</string>
-    <string name="pref_managekeys_menu_title">Управление на ключовете</string>
-    <string name="pref_managekeys_export_secret_keys">Експорт на тайните ключове</string>
-    <string name="pref_managekeys_export_explain">Да бъдат ли експортирани тайните ключове в \"%1$s\"?</string>
-    <string name="pref_managekeys_import_secret_keys">Импорт на тайни ключове</string>
-    <string name="pref_managekeys_import_explain">Да бъдат ли импортирани тайните ключове от \"%1$s\"?\n\n• Съществуващите тайни ключове няма да бъдат изтрити\n\n• Последният импортиран ключ ще стане новият подразбиращ се ключ, освен в случай че съдържа думата \"legacy\" в името на файла си.</string>
-    <string name="pref_managekeys_secret_keys_exported_to_x">Тайните ключове са записани успешно в \"%1$s\".</string>
-    <string name="pref_managekeys_secret_keys_imported_from_x">Тайните ключове са импортирани от \"%1$s\".</string>
     <!-- No need to translate "Wallpaper" literally. Chose what is common in your language for a "Wallpaper" or a "Background". Avoid adding the term "image" here, as the "Wallpaper" may also be just a single color. -->
     <string name="pref_background">Фон</string>
     <string name="pref_background_btn_default">Да се използва подразбиращото се изображение</string>
     <string name="pref_background_btn_gallery">Избор от галерията</string>
-    <string name="pref_imap_folder_handling">Обработка на папките на IMAP</string>
     <string name="pref_imap_folder_warn_disable_defaults">Ако промение тази опция, се уверете, че Вашият сървър и другите Ви клиенти са конфигурирани по съответен начин.\n\nВ противен случай е възможно нещата въобще да не работят.</string>
-    <string name="pref_watch_sent_folder">Да бъде наблюдавана папката \"Изпратени\"</string>
-    <string name="pref_send_copy_to_self">Изпращане на копие до себе си</string>
-    <!-- for classic email, we use the classical term "Account" -->
-    <string name="pref_send_copy_to_self_explain">Изисква се, когато този акант се използва на повече от едно устройство.</string>
     <string name="pref_auto_folder_moves">Автоматично преместване в папката DeltaChat</string>
-    <string name="pref_auto_folder_moves_explain">Разговорите са преместени, за да се избегне претрупване на папката \"Входящи\"</string>
     <string name="pref_only_fetch_mvbox_title">Да се извлича само от папката DeltaChat</string>
-    <string name="pref_only_fetch_mvbox_explain">Другите папки да не бъдат взимани под внимание. Изисква Вашият сървър да премества чат съобщенията в папката DeltaChat.</string>
     <string name="pref_show_emails">Да се показват класически e-mail съобщения</string>
     <string name="pref_show_emails_no">Не, само чатове</string>
     <string name="pref_show_emails_accepted_contacts">За приетите контакти</string>
     <string name="pref_show_emails_all">Всички</string>
     <string name="pref_experimental_features">Експериментални възможности</string>
     <string name="pref_on_demand_location_streaming">Поточно излъчване на местоположението при поискване</string>
-    <string name="pref_developer_mode">Режим за разработчици</string>
-    <string name="pref_developer_mode_explain">Активира опциите за отстраняване на грешки и може да направи приложението по-малко стабилно. Само за разработчици.</string>
     <string name="pref_background_default">Подразбиращо се изображение</string>
     <string name="pref_background_default_color">Подразбиращ се цвят</string>
     <string name="pref_background_custom_image">Зададено от Вас изображение</string>
@@ -750,8 +655,6 @@
     <string name="disable_imap_idle">Деактивиране на IMAP IDLE</string>
     <string name="disable_imap_idle_explain">Да не се използва разширението IMAP IDLE дори ако сървърът го поддържа. Ако тази опция бъде разрешена, извличането на съобщенията ще бъде забавено. Разрешете я само за тестване.</string>
     <string name="send_stats_to_devs">Да се изпраща статистика към разработчиците на Delta Chat</string>
-
-
     <!-- Emoji picker and categories -->
     <string name="emoji_search_results">Резултати от търсенето</string>
     <string name="emoji_not_found">Не е открито Emoji</string>
@@ -787,39 +690,14 @@
     <string name="autodel_confirm">Разбирам. Всички тези съобщения да бъдат изтрити</string>
     <!-- "At once" in the meaning of "Immediately", without any intervening time. -->
     <string name="autodel_at_once">Наведнъж</string>
-    <string name="after_30_seconds">След 30 секунди</string>
-    <string name="after_1_minute">След 1 минута</string>
     <string name="after_5_minutes">След 5 минути</string>
-    <string name="after_30_minutes">След 30 минути</string>
     <string name="autodel_after_1_hour">След 1 час</string>
     <string name="autodel_after_1_day">След 1 ден</string>
     <string name="autodel_after_1_week">След 1 седмица</string>
     <string name="after_5_weeks">След 5 седмици</string>
     <string name="autodel_after_1_year">След 1 година</string>
 
-    <!-- autocrypt -->
-    <string name="autocrypt_send_asm_title">Изпращане на съобщение за настройка на Autocrypt</string>
-    <string name="autocrypt_send_asm_explain_before">Съобщението за настройка на Autocrypt споделя по сигурен начин Вашата настройка за криптиране \"от край до край\" с други съвместими с Autorcypt приложения.\n\nНастройката се криптира с код, който се показва тук и трябва да бъде въведен на другото устройство.</string>
-    <string name="autocrypt_send_asm_button">Изпращане на съобщението за настройка на Autocrypt</string>
-    <string name="autocrypt_send_asm_explain_after">Изпратихте Вашата настройка до себе си. Отворете съобщението за настройка в другото устройство. Би трябвало да Ви бъде поискан код за настройка. Въведете следните цифри:</string>
-    <string name="autocrypt_prefer_e2ee">Да се предпочита криптиране \"от край до край\"</string>
-    <string name="autocrypt_asm_subject">Съобщение за настройка на Autocrypt</string>
-    <string name="autocrypt_asm_general_body">Това е съобщението за настройка на Autocrypt, чрез което се прехвърля Вашата настройка за криптиране \"от край до край\" между различни клиенти.\n\nЗа да декриптирате и използвате Вашата настройка, отворете съобщението в клиент, съвместим с Autocrypt, и въведете кода за настройка, представен на генериращото устройство.</string>
-    <string name="autocrypt_asm_click_body">Това е съобщението за настройка на Autocrypt, чрез което се прехвърля Вашата настройка за криптиране \"от край до край\" между различни клиенти.\n\nЗа да декриптирате и използвате своята настройка, докоснете или щракнете върху това съобщение.</string>
-    <string name="autocrypt_continue_transfer_title">Съобщение за настройка на Autocrypt</string>
-    <string name="autocrypt_continue_transfer_please_enter_code">Моля, въведете кода за настройка, показан на другото устройство.</string>
-    <string name="autocrypt_continue_transfer_succeeded">Настройката за криптиране \"от край до край\" е прехвърлена. Устройството е готово да използва Autocrypt със същата настройка като другото.</string>
-    <string name="autocrypt_continue_transfer_retry">Да се опита отново</string>
-    <string name="autocrypt_bad_setup_code">Невалиден код за настройка. Моля, опитайте отново.\n\nАко не си спомняте кода за настройка, изпратете ново съобщение за настройка на Autocrypt от другото устройство.</string>
-
-
     <!-- system messages -->
-    <!-- deprecated -->
-    <string name="systemmsg_read_receipt_subject">Съобщението е отворено</string>
-    <!-- deprecated -->
-    <string name="systemmsg_read_receipt_body">Съобщението \"%1$s\", което изпратихте, беше показано на екрана на получателя.\n\nТова не е гаранция, че съдържанието му е прочетено.</string>
-    <string name="systemmsg_cannot_decrypt">Това съобщение не може да бъде декриптирано.\n\n• Бихте могли просто да му отговорите и да помолите подателя да го изпрати отново.\n\n• Ако току-що сте преинсталирали Delta Chat, е най-добре да настроите приложението отново сега и да изберете \"Добавяне като второ устройство\" или да импортирате от архив.</string>
-    <string name="systemmsg_unknown_sender_for_chat">Неизвестен подател за този чат. Вижте \"информация\" за повече подробности.</string>
     <string name="systemmsg_subject_for_new_contact">Съобщение от %1$s</string>
     <string name="systemmsg_failed_sending_to">Неуспешно изпращане на съобщение до %1$s.</string>
     <!-- %1$s will be replaced by the old group name, %2$s will be replaced by the new group name -->
@@ -827,69 +705,64 @@
     <!-- %1$s will be replaced by the old group name, %2$s will be replaced by the new group name, %3$s will be replaced by name and address of the contact who did the action. -->
     <string name="group_name_changed_by_other">Името на групата е променено от \"%1$s\" на \"%2$s\" от %3$s.</string>
     <string name="group_image_changed_by_you">Променихте изображението на групата.</string>
-    <!-- %1$s will be replaced by name and address of the contact who did the action -->
+    <!-- %1$s will be replaced by name of the contact who did the action -->
     <string name="group_image_changed_by_other">Изображението на групата е променено от %1$s</string>
-    <!-- %1$s will be replaced by name and address of the contact added to the group -->
+    <!-- %1$s will be replaced by name of the contact added to the group -->
     <string name="member_x_added">Добавен е членът %1$s.</string>
-    <!-- %1$s will be replaced by name and address of the contact added to the group -->
+    <!-- %1$s will be replaced by name of the contact added to the group -->
     <string name="add_member_by_you">Добавихте члена %1$s</string>
-    <!-- %1$s will be replaced by name and address of the contact added to the group, %2$s will be replaced by name and address of the contact who did the action -->
+    <!-- %1$s will be replaced by name of the contact added to the group, %2$s will be replaced by name of the contact who did the action -->
     <string name="add_member_by_other">Членът %1$s е добавен от %2$s</string>
-    <!-- %1$s will be replaced by name and address of the contact removed from the group -->
+    <!-- %1$s will be replaced by name of the contact removed from the group -->
     <string name="remove_member_by_you">Премахнахте члена %1$s</string>
-    <!-- %1$s will be replaced by name and address of the contact removed from the group, %2$s will be replaced by name and address of the contact who did the action -->
+    <!-- %1$s will be replaced by name of the contact removed from the group, %2$s will be replaced by name of the contact who did the action -->
     <string name="remove_member_by_other">Членът %1$s е премахнат от %2$s</string>
-    <!-- "left" in the meaning of "exited" -->
-    <string name="group_left_by_you">Напуснахте групата.</string>
-    <!-- "left" in the meaning of "exited"; %1$s will be replaced by name and address of the contact leaving the group -->
+    <!-- "left" in the meaning of "exited"; %1$s will be replaced by name of the contact leaving the group -->
     <string name="group_left_by_other">Групата е напусната от %1$s.</string>
     <string name="group_image_deleted_by_you">Изтрихте изображението на групата.</string>
-    <!-- %1$s will be replaced by name and address of the contact -->
+    <!-- %1$s will be replaced by name of the contact -->
     <string name="group_image_deleted_by_other">Изображението на групата е изтрито от %1$s</string>
     <string name="location_enabled_by_you">Разрешихте поточното излъчване на местоположението.</string>
-    <!-- %1$s will be replaced by name and address of the contact -->
+    <!-- %1$s will be replaced by name of the contact -->
     <string name="location_enabled_by_other">Поточното излъчване на местоположението е разрешено от %1$s.</string>
     <string name="ephemeral_timer_disabled_by_you">Таймерът на изчезващите съобщения е деактивиран от мен</string>
-    <!-- %1$s will be replaced by name and address of the contact -->
+    <!-- %1$s will be replaced by name of the contact -->
     <string name="ephemeral_timer_disabled_by_other">Таймерът на изчезващите съобщения е деактивиран от %1$s</string>
     <!-- %1$s will be replaced by the number of seconds (always >1) the timer is set to -->
     <string name="ephemeral_timer_seconds_by_you">Установихте таймера на изчезващите съобщения на %1$s</string>
-    <!-- %1$s will be replaced by the number of seconds (always >1) the timer is set to, %2$s will be replaced by name and address of the contact -->
+    <!-- %1$s will be replaced by the number of seconds (always >1) the timer is set to, %2$s will be replaced by name of the contact -->
     <string name="ephemeral_timer_seconds_by_other">Таймерът на изчезващите съобщение е установен на %1$sсек. от %2$s.</string>
+    <!-- deprecated, usage needs to be removed in core -->
     <string name="ephemeral_timer_1_minute_by_you">Установихте таймера на изчезващите съобщения на 1 минута.</string>
-    <!-- %1$s will be replaced by name and address of the contact -->
+    <!-- deprecated, usage needs to be removed in core -->
     <string name="ephemeral_timer_1_minute_by_other">Таймерът на изчезващите съобщения е установен на 1 минута от %1$s.</string>
     <string name="ephemeral_timer_1_hour_by_you">Установихте таймера на изчезващите съобщения на 1 час.</string>
-    <!-- %1$s will be replaced by name and address of the contact -->
+    <!-- %1$s will be replaced by name of the contact -->
     <string name="ephemeral_timer_1_hour_by_other">Таймерът на изчезващите съобщения е установен на 1 час от %1$s.</string>
     <string name="ephemeral_timer_1_day_by_you">Установихте таймера на изчезващите съобщения на 1 ден.</string>
-    <!-- %1$s will be replaced by name and address of the contact -->
+    <!-- %1$s will be replaced by name of the contact -->
     <string name="ephemeral_timer_1_day_by_other">Таймерът на изчезващите съобщения е установен на 1 ден от %1$s.</string>
     <string name="ephemeral_timer_1_week_by_you">Установихте таймера на изчезващите съобщения на 1 седмица.</string>
-    <!-- %1$s will be replaced by name and address of the contact -->
+    <!-- %1$s will be replaced by name of the contact -->
     <string name="ephemeral_timer_1_week_by_other">Таймерът на изчезващите съобщения е установен на 1 седмица от %1$s.</string>
     <!-- %1$s will be replaced by the number of minutes (always >1) the timer is set to -->
     <string name="ephemeral_timer_minutes_by_you">Установихте таймера на изчезващите съобщения на %1$s минути.</string>
-    <!-- %1$s will be replaced by the number of minutes (always >1) the timer is set to, %2$s will be replaced by name and address of the contact -->
+    <!-- %1$s will be replaced by the number of minutes (always >1) the timer is set to, %2$s will be replaced by name of the contact -->
     <string name="ephemeral_timer_minutes_by_other">Таймерът на изчезващите съобщения е установен на %1$s минути от %2$s.</string>
     <!-- %1$s will be replaced by the number of hours (always >1) the timer is set to -->
     <string name="ephemeral_timer_hours_by_you">Установихте таймера на изчезващите съобщения на %1$s часа.</string>
-    <!-- %1$s will be replaced by the number of hours (always >1) the timer is set to, %2$s will be replaced by name and address of the contact -->
+    <!-- %1$s will be replaced by the number of hours (always >1) the timer is set to, %2$s will be replaced by name of the contact -->
     <string name="ephemeral_timer_hours_by_other">Таймерът на изчезващите съобщения е установен на %1$s часа от %2$s.</string>
     <!-- %1$s will be replaced by the number of days (always >1) the timer is set to -->
     <string name="ephemeral_timer_days_by_you">Установихте таймера на изчезващите съобщения на %1$s дни.</string>
-    <!-- %1$s will be replaced by the number of days (always >1) the timer is set to, %2$s will be replaced by name and address of the contact -->
+    <!-- %1$s will be replaced by the number of days (always >1) the timer is set to, %2$s will be replaced by name of the contact -->
     <string name="ephemeral_timer_days_by_other">Таймерът на изчезващите съобщения е установен на %1$s дни от %2$s.</string>
     <!-- %1$s will be replaced by the number of weeks (always >1) the timer is set to -->
     <string name="ephemeral_timer_weeks_by_you">Установихте таймера на изчезващите съобщения на %1$s седмици.</string>
-    <!-- %1$s will be replaced by the number of weeks (always >1) the timer is set to, %2$s will be replaced by name and address of the contact -->
+    <!-- %1$s will be replaced by the number of weeks (always >1) the timer is set to, %2$s will be replaced by name of the contact -->
     <string name="ephemeral_timer_weeks_by_other">Таймерът на изчезващите съобщения е установен на %1$s седмици от %2$s.</string>
-    <!-- this may be shown instead of the chat's input field, with buttons "More Info" and "OK" -->
-    <string name="chat_protection_broken">%1$s изпрати съобщение от друго устройство.</string>
     <string name="chat_protection_enabled_tap_to_learn_more">От тук нататък е гарантирано, че съобщенията ще бъдат криптирани от край до край. Докоснете, за да научите повече.</string>
     <string name="chat_protection_enabled_explanation">От тук нататък е гарантирано, че всички съобщения в този чат са криптирани от край до край.\n\nКриптирането от край до край запазва поверителността на съобщенията между вас и вашите партньори в чата. Дори Вашият e-mail доставчик не може да ги прочете.</string>
-    <string name="chat_protection_broken_tap_to_learn_more">%1$s изпрати съобщение от друго съобщение. Докоснете, за да научите повече.</string>
-    <string name="chat_protection_broken_explanation">Криптирането от край до край повече не може да бъде гарантирано, вероятно защото %1$s преинсталира Delta Chat или изпрати съобщение от друго устройство.\n\nБихте могли да се срещнете с него/нея лично, да сканирате неговия/нейния QR код отново и отново да установите гарантирано криптиране от край до край.</string>
     <string name="invalid_unencrypted_tap_to_learn_more">⚠️%1$s изисква криптиране от край до край, което все още не е установено за този чат. Докоснете, за да научите повече.</string>
     <string name="invalid_unencrypted_explanation">За да установите криптиране от край до край, бихте могли да се срещате с лицата, с които желаете да контактувате, лично и да сканирате техните QR кодове, за да ги въведете.</string>
     <string name="learn_more">Научете повече</string>
@@ -920,10 +793,7 @@
     <string name="withdraw_verifycontact_explain">Чрез сканиране на този QR код други хора могат да се свързват с Вас.\n\nМожете да деактивирате QR кода тук и повторно да го активирате, като го сканирате отново.</string>
     <string name="withdraw_verifygroup_explain">Чрез сканиране на този QR код други хора могат да се присъединяват към крупата \"%1$s\".\n\nМожете да деактивирате QR кода тук и повторно да го активирате, като го сканирате отново.</string>
     <string name="withdraw_qr_code">Деактивиране на QR кода</string>
-    <!-- "could" in the meaning of "possible at some point in the past, but no longer possible today" -->
     <string name="revive_verifycontact_explain">Чрез сканиране на този QR код други хора могат да се свързват с Вас.\n\nQR кодът не е активен на това устройство.</string>
-    <!-- "could" in the meaning of "possible at some point in the past, but no longer possible today" -->
-    <string name="revive_verifygroup_explain">Този QR код е давал възможност други да се присъединяват към групата \"%1$s\" чрез сканирането му.\n\nQR кодът не е активен на това устройство.</string>
     <string name="revive_qr_code">Активиране на QR кода</string>
     <string name="qrshow_title">QR код за покана</string>
     <string name="qrshow_x_joining">%1$s се присъединява.</string>
@@ -933,7 +803,7 @@
     <!-- This text is shown inside the "QR code card" with very limited space; please formulate the text as short as possible therefore. The placeholder will be replaced by the group name, eg. "Scan to join group \"Testing group\"" -->
     <string name="qrshow_join_group_hint">Сканирайте, за да се присъедините към групата \"%1$s\"</string>
     <string name="qrshow_join_contact_title">QR код за покана</string>
-    <!-- This text is shown inside the "QR code card" with very limited space; please formulate the text as short as possible therefore. The placeholder will be replaced by name and address eg. "Scan to chat with Alice (alice@example.org)" -->
+    <!-- This text is shown inside the "QR code card" with very limited space; please formulate the text as short as possible therefore. The placeholder will be replaced by the profile name eg. "Scan to chat with Alice" -->
     <string name="qrshow_join_contact_hint">Сканирайте, за да чатите с %1$s</string>
     <string name="qrshow_join_contact_no_connection_toast">Няма връзка към Интернет, не може да бъде извършена настройка чрез QR код.</string>
     <string name="qraccount_ask_create_and_login">Да бъде ли създаден нов адрес за електронна поща на \"%1$s\" и да бъде ли осъществено влизане там?</string>
@@ -941,25 +811,21 @@
     <string name="set_name_and_avatar_explain">Задайте име, което Вашите контакти ще разпознават.  Можете също да установите изображение за профил.</string>
     <string name="please_enter_name">Моля, въведете име.</string>
     <string name="qraccount_qr_code_cannot_be_used">Не може да бъде създаден нов акаунт със сканирания QR код.</string>
-    <!-- the placeholder will be replaced by the e-mail address of the profile -->
+    <!-- the placeholder will be replaced by the address of the profile -->
     <string name="qrlogin_ask_login">Желаете ли да влезете в \"%1$s\"?</string>
-    <!-- the placeholder will be replaced by the e-mail address of the profile -->
+    <!-- the placeholder will be replaced by the address of the profile -->
     <string name="qrlogin_ask_login_another">Желаете ли да влезете в \"%1$s\"?\n\nСъщестуващият Ви акаунт няма да бъде изтрит. Превключвайте между акаунтите си чрез \"Превключване към друг акаунт\".</string>
-    <!-- first placeholder will be replaced by name and address of the inviter, second placeholder will be replaced by the name of the inviter. -->
+    <!-- first placeholder will be replaced by name of the inviter, second placeholder will be replaced by the name of the inviter. -->
     <string name="secure_join_started">%1$s Ви покани да се присъедините към тази група.\n\nИзчаква се устройството на %2$s да отговори…</string>
     <!-- placeholder will be replaced by the name of the inviter. -->
     <string name="secure_join_replies">%1$s отговори, изчаква се да бъдете добавени към групата…</string>
     <string name="secure_join_wait">Установява се гарантирано криптиране от край до край, моля изчакайте…</string>
-    <string name="secure_join_wait_timeout">Все още не може да бъде установено гарантирано криптиране от край до край, но вече можете да пратите съобщение.</string>
     <string name="contact_verified">%1$s е проверен.</string>
-    <string name="contact_not_verified">Не може да бъде проверен %1$s.</string>
     <!-- Shown in contact profile. The placeholder will be replaced by the name of the contact that introduced the contact. -->
     <string name="verified_by">Проверен от%1$s</string>
     <string name="verified_by_you">Представен от мен</string>
-    <!-- translators: "setup" is the "encryption setup" here, as in "Autocrypt Setup Message" -->
-    <string name="contact_setup_changed">Настройката за %1$s е сменена.</string>
+    <!-- deprecated -->
     <string name="verified_contact_required_explain">За да се гарантира криптирането от край до край, можете да добавяте в тази група само контакти, отбелязани със зелена отметка.\n\nБихте могли да се срещнете с лицата, с които желаете да контактувате, лично и да сканирате техните QR кодове, за да ги въведете.</string>
-    <string name="copy_qr_data_success">URL адресът от QR кода е копиран в клипборда</string>
     <string name="mailto_dialog_header_select_chat">Изберете чат, към който да бъде пратено съобщението</string>
     <!-- first placeholder is the name of the chat -->
     <string name="confirm_replace_draft">%1$s вече има съобщение чернова, искате ли да го замените?</string>
@@ -985,6 +851,7 @@
     <string name="perm_required_title">Изисква се позволение</string>
     <string name="perm_continue">Продължаване</string>
     <string name="perm_explain_access_to_camera_denied">За да правите снимки или заснемате видеоклипове, отидете в настройките на приложението, изберете \"Позволения\" и разрешете \"Камера\".</string>
+    <!-- give the user an idea where to find the "Microphone" option. the hint is only shown if access was initially denied by the user. pick up wordings really used on the systems, but do not be overly precise: things shift around often and there are too many system we support to track every detail and click path -->
     <string name="perm_explain_access_to_mic_denied">За да изпращате аудиосъобщения, отидете в настройките на приложението, изберете \"Позволения\" и разрешете \"Микрофон\".</string>
     <string name="perm_explain_access_to_storage_denied">За да получавате или изпращате файлове, отидете в настройките на приложението, изберете \"Позволения\" и разрешете \"Съхранение\".</string>
     <string name="perm_explain_access_to_location_denied">За да прикрепите информация за местоположението, отидете в настройките на приложението, изберете \"Позволения\" и разрешете \"Местоположение\".</string>
@@ -999,9 +866,6 @@
     <string name="ImageEditorHud_crop">Изрязване</string>
     <string name="ImageEditorHud_flip">Обръщане</string>
     <string name="ImageEditorHud_rotate">Завъртане</string>
-
-    <!-- dc_str_* resources -->
-    <string name="encrypted_message">Криптирано съобщение</string>
 
     <!-- strings introduced on desktop. we want to share strings between the os, in general, please do not add generic strings here -->
     <string name="about_offical_app_desktop">Това е официалното настолно приложение Delta Chat.</string>
@@ -1021,8 +885,6 @@
     <string name="global_menu_view_developer_desktop">Разработчик</string>
     <string name="global_menu_view_developer_tools_desktop">Инструменти за разработчици</string>
     <string name="global_menu_help_desktop">Помощ</string>
-    <string name="global_menu_help_learn_desktop">Научете повече за Delta Chat</string>
-    <string name="global_menu_help_contribute_desktop">Допринесете в GitHub</string>
     <string name="global_menu_help_report_desktop">Съобщаване за проблем</string>
     <string name="global_menu_help_about_desktop">Относно Delta Chat</string>
     <string name="global_menu_file_open_desktop">Отваряне на Delta Chat</string>
@@ -1038,8 +900,6 @@
     <string name="name_desktop">Име</string>
     <string name="select_group_image_desktop">Изберете изображение за групата</string>
     <string name="export_backup_desktop">Експорт на резервно копие</string>
-    <string name="autocrypt_correct_desktop">Найстроката на Autocrypt е прехвърлена.</string>
-    <string name="forget_login_confirmation_desktop">Да бъде ли изтрита тази регистрация? Всичко ще бъде изтрито, включително Вашата настройка за криптиране \"от край до край\", контакти, чатове, съобщения и медийни файлове. Това действие не може да бъде отменено.</string>
     <string name="message_detail_sent_desktop">изпратено</string>
     <string name="message_detail_received_desktop">получено</string>
     <string name="menu.view.developer.open.log.folder">Отваряне на папката \"Дневник\"</string>
@@ -1047,7 +907,6 @@
     <string name="explain_desktop_minimized_disabled_tray_pref" tools:ignore="TypographyDashes">Показването на икона в системната лента не може да бъде забранено, тъй като Delta Chat е стартиран с опцията --minimized.</string>
     <string name="no_spellcheck_suggestions_found">Няма открити предложения за правопис.</string>
     <string name="show_window">Показване на прозореца</string>
-    <string name="login_socks5_experimental_warning">Понастоящем поддръжката за SOCKS5 е експериментална. Използвайте на собствен риск. Ако въведете адрес в полето \"Електронна поща\", ще бъде осъществено DNS търсене извън SOCKS5 тунела.</string>
 
     <!-- title of the "keybindings" dialog (for the keybindings names as such, where possible the normal command strings are used) -->
     <string name="keybindings">Обвързвания на клавиши към команди</string>
@@ -1062,7 +921,6 @@
 
     <!-- accessibility, the general idea is to use the normal strings for accessibility hints wherever possible -->
     <string name="a11y_delivery_status_error">Статус на доставката: Грешка</string>
-    <string name="a11y_encryption_padlock">Катинар за криптиране</string>
     <string name="a11y_delivery_status_sending">Статус на доставката: Изпраща се</string>
     <string name="a11y_delivery_status_draft">Статус на доставката: Чернова</string>
     <string name="a11y_delivery_status_delivered">Статус на доставката: Доставено</string>
@@ -1089,16 +947,11 @@
     <string name="disabled_in_dc">Забранено в Delta Chat</string>
     <string name="disabled_in_system_settings">Забранено в системните настройки</string>
     <string name="bg_app_refresh_disabled">\"Опресняване на приложението на заден план\" е забранено в системните настройки</string>
-    <!-- iOS connectivity view, Adjective, used eg. as "Notifications: Delayed" -->
-    <string name="delayed">Отложени</string>
     <string name="notifications_avg_minutes">Средно всеки %1$d минути</string>
     <string name="notifications_avg_hours">Средно всеки %1$d часа</string>
     <string name="last_check_at">Проверено на %1$s</string>
-    <!-- iOS webxdc selector -->
-    <string name="webxdc_selector_empty_hint">Приложенията, получени или изпратени в кой да е чат, ще се появяват тук. \"Файлове\" показва току-що свалените приложения.</string>
     <!-- iOS permissions, copy from "deltachat-ios/Info.plist", which is used on missing translations in "deltachat-ios/LANG.lproj/InfoPlist.strings" -->
     <string name="InfoPlist_NSCameraUsageDescription">Delta Chat използва Вашата камера, за да прави и изпраща снимки и видеоклипове, както и да сканира QR кодове.</string>
-    <string name="InfoPlist_NSContactsUsageDescription">Delta Chat използва Вашите контакти, за да показва списък на e-mail адресите, до които можете да пишете. Delta Chat няма собствен сървър, Вашите контакти не се пращат никъде.</string>
     <string name="InfoPlist_NSLocationAlwaysAndWhenInUseUsageDescription">Delta Chat се нуждае от позволение да споделя Вашето местоположение за периода от време, през който сте разрешили споделяне на местоположението.</string>
     <string name="InfoPlist_NSLocationWhenInUseUsageDescription">Delta Chat се нуждае от позволение да споделя Вашето местоположение за периода от време, през който сте разрешили споделяне на местоположението.</string>
     <string name="InfoPlist_NSMicrophoneUsageDescription">Delta Chat използва Вашия микрофон, за да записва и изпраща гласови съобщения и видеоклипове със звук.</string>

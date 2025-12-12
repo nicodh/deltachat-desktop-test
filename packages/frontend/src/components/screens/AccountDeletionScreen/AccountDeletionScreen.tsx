@@ -15,7 +15,7 @@ import styles from './styles.module.scss'
 import { T } from '@deltachat/jsonrpc-client'
 import { BackendRemote } from '../../../backend-com'
 import { Screens } from '../../../ScreenController'
-import { avatarInitial } from '../../Avatar'
+import { avatarInitial } from '@deltachat-desktop/shared/avatarInitial'
 import { getLogger } from '../../../../../shared/logger'
 import ImageBackdrop from '../../ImageBackdrop'
 import { runtime } from '@deltachat-desktop/runtime-interface'
@@ -140,9 +140,9 @@ class AccountSize extends Component<{ accountId: number }, { size?: string }> {
   async update() {
     const bytes = await BackendRemote.rpc
       .getAccountFileSize(this.props.accountId)
-      .catch(log.error)
+      .catch(log.error.bind(log))
     if (!this.wasDestroyed) {
-      this.setState({ size: bytes ? filesize(bytes) : undefined })
+      this.setState({ size: bytes !== undefined ? filesize(bytes) : undefined })
     }
   }
 

@@ -1,5 +1,5 @@
 import React, { Component, PropsWithChildren, useEffect, useState } from 'react'
-import debounce from 'debounce'
+import { throttle } from '@deltachat-desktop/shared/util'
 import { C } from '@deltachat/jsonrpc-client'
 
 import Icon from '../Icon'
@@ -38,7 +38,7 @@ export default function AccountHoverInfo({
 
   const showConnection = isSelected || !bgSyncDisabled
 
-  let content: JSX.Element
+  let content: React.ReactElement
 
   if (account.kind === 'Unconfigured') {
     content = (
@@ -135,7 +135,7 @@ class Connectivity extends Component<{ accountId: number }, ConnectivityState> {
     this.eventUnregisterHandle = onDCEvent(
       this.accountId,
       'ConnectivityChanged',
-      debounce(this.onConnectivityChanged.bind(this), 300)
+      throttle(this.onConnectivityChanged.bind(this), 400)
     )
   }
 

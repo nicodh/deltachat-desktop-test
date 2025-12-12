@@ -19,7 +19,7 @@ type Props = {
   headerTitle: string
   onChatClick: (chatId: number) => void
   listFlags: number
-  footer?: React.JSX.Element
+  footer?: React.ReactElement
 }
 
 export default function SelectChat(props: Props) {
@@ -61,13 +61,16 @@ export default function SelectChat(props: Props) {
               <PseudoListItemNoSearchResults queryStr={queryStr} />
             )}
             <div style={{ height: noResults ? '0px' : '100%' }}>
-              <AutoSizer>
-                {({ width, height }) => (
+              <AutoSizer disableWidth>
+                {({ height }) => (
                   <ChatListPart
+                    olElementAttrs={{
+                      'aria-label': tx('pref_chats'),
+                    }}
                     isRowLoaded={isChatLoaded}
                     loadMoreRows={loadChats}
                     rowCount={chatListIds.length}
-                    width={width}
+                    width={'100%'}
                     height={height}
                     itemKey={index => 'key' + chatListIds[index]}
                     itemHeight={CHATLISTITEM_CHAT_HEIGHT}
@@ -76,8 +79,8 @@ export default function SelectChat(props: Props) {
                       chatListIds,
                       onChatClick: props.onChatClick,
 
-                      selectedChatId: null,
-                      activeContextMenuChatId: null,
+                      activeChatId: null,
+                      activeContextMenuChatIds: [],
                       openContextMenu: async () => {},
                     }}
                   >

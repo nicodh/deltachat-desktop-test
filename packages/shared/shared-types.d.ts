@@ -15,32 +15,58 @@ export interface DesktopSettingsType {
    * @deprecated replaced by lastAccount,
    * not used since ages, still here so we are reminded to delete it should it exist */
   credentials?: never
-  /** path to last used/selected Account */
+  /** path to last used/selected Account
+   *
+   * @deprecated in favor of storing selected account over core account manager in accounts.toml
+   */
   lastAccount?: number
-  enableAVCalls: boolean
+  /**
+   * @deprecated removed in https://github.com/deltachat/deltachat-desktop/pull/3965
+   * @see {@linkcode enableAVCallsV2}
+   */
+  enableAVCalls?: boolean
+  /**
+   * The new version of video calls.
+   * @see https://github.com/orgs/deltachat/projects/81
+   * @see also {@linkcode enableAVCalls}
+   */
+  enableAVCallsV2: boolean
   enableBroadcastLists: boolean
-  enableChatAuditLog: boolean
   enableOnDemandLocationStreaming: boolean
   enterKeySends: boolean
   locale: string | null
   notifications: boolean
   showNotificationContent: boolean
+  isMentionsEnabled: boolean
+  /**
+   * Controls the volume of the sound accompanying incoming
+   * (and possibly outgoing, in the future) messages
+   * of the currently open chat.
+   * A number between 0 and 1.
+   *
+   * This is important for accessibility. We do not otherwise announce
+   * incoming messages in the current chat.
+   */
+  inChatSoundsVolume: number
   /** @deprecated isn't used anymore since the move to jsonrpc */
   lastChats: { [accountId: number]: number }
-  zoomFactor: number
+  /** @deprecated we don't store/read the zoomFactor from settings since PR #5175
+   *  chromium saves it per same-origin
+   */
+  zoomFactor: number | undefined
   /** address to the active theme file scheme: "custom:name" or "dc:name" */
   activeTheme: string
   minimizeToTray: boolean
   syncAllAccounts: boolean
   /** @deprecated The last used file location for the save dialog is now only kept in memory and not persisted anymore between sessions. */
   lastSaveDialogLocation: string | undefined
-  experimentalEnableMarkdownInMessages: boolean
+  /** @deprecated */
+  experimentalEnableMarkdownInMessages?: boolean
   enableWebxdcDevTools: boolean
   /** set to false to disable the confirmation dialog for loading remote content */
   HTMLEmailAskForRemoteLoadingConfirmation: boolean
   /** always loads remote content without asking, for non contact requests  */
   HTMLEmailAlwaysLoadRemoteContent: boolean
-  enableRelatedChats: boolean
   /** gallery image & video - keep aspect ratio (true) or cover (false) */
   galleryImageKeepAspectRatio: boolean
   /** whether to use system ui font */
@@ -50,6 +76,8 @@ export interface DesktopSettingsType {
    * also called screen_security
    */
   contentProtectionEnabled: boolean
+  /** whether to start with system on supported platforms */
+  autostart: boolean
 }
 
 export interface RC_Config {
@@ -69,6 +97,7 @@ export interface RC_Config {
 }
 
 import type { T } from '@deltachat/jsonrpc-client'
+import { NOTIFICATION_TYPE } from './constants.ts'
 
 export type Theme = {
   name: string
@@ -97,6 +126,14 @@ export type RuntimeInfo = {
    * and sticker picker currently would open a folder, which is inside of the pp container, so too much work to make work for now
    */
   hideEmojiAndStickerPicker?: boolean
+  tauriSpecific?: {
+    scheme: {
+      blobs: string
+      chatBackgroundImage: string
+      webxdcIcon: string
+      stickers: string
+    }
+  }
 }
 
 export interface BuildInfo {
@@ -113,10 +150,11 @@ export interface DcNotification {
    * (or a data url with base64 encoded data)
    */
   icon: string | null
+  iconIsAvatar?: boolean // for tauri, windows controlling how images is disaplayed
   chatId: number
   messageId: number
-  // for future
   accountId: number
+  notificationType: NOTIFICATION_TYPE
 }
 
 export interface DcOpenWebxdcParameters {
@@ -141,4 +179,12 @@ export interface RuntimeOpenDialogOptions {
   )[]
   defaultPath?: string
   buttonLabel?: string
+}
+
+export interface AutostartState {
+  isSupported: boolean
+  // This is not the same as enabled in the desktop settings,
+  // this is the actual state not the desktop setting
+  // null means it can't be determined and no message should be shown
+  isRegistered: boolean | null
 }

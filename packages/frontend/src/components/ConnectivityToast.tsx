@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { C } from '@deltachat/jsonrpc-client'
 import { debounce } from 'debounce'
 
@@ -43,6 +43,10 @@ export default function ConnectivityToast() {
     ])
   }
 
+  const tryMaybeNetworkIfOfflineAfterXmsRef = useRef<(ms: number) => void>(
+    () => {}
+  )
+
   const tryMaybeNetworkIfOfflineAfterXms = useCallback(
     (ms: number) => {
       setTimeout(() => {
@@ -55,7 +59,8 @@ export default function ConnectivityToast() {
             )
             maybeNetwork()
           } else if (ms < 30000) {
-            tryMaybeNetworkIfOfflineAfterXms(2 * ms)
+            // Recursive call using ref to avoid circular dependency
+            tryMaybeNetworkIfOfflineAfterXmsRef.current?.(2 * ms)
           } else {
             log.debug(
               `We tried reconnecting with waiting for more then 30 seconds, now stop`
@@ -69,6 +74,10 @@ export default function ConnectivityToast() {
     },
     [maybeNetwork]
   )
+
+  // Update ref to enable recursive calls without circular dependency
+  // eslint-disable-next-line react-hooks/refs
+  tryMaybeNetworkIfOfflineAfterXmsRef.current = tryMaybeNetworkIfOfflineAfterXms
 
   const onBrowserOnline = useCallback(() => {
     log.debug("Browser thinks we're back online, telling rust core")
@@ -162,6 +171,7 @@ export default function ConnectivityToast() {
       Ensure to set `position: relative` on all interactive elements
       so that they are clickable */}
       <button
+        type='button'
         onClick={onInfoTextClick}
         className='showInfoButton'
         aria-label={tx('connectivity')}
@@ -171,6 +181,7 @@ export default function ConnectivityToast() {
         <>
           <a title={networkState[1]}>{tx('connectivity_not_connected')}</a>
           <button
+            type='button'
             className='tryNowButton'
             onClick={onTryReconnectClick}
             disabled={!tryConnectCooldown}

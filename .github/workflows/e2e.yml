@@ -83,28 +83,34 @@ jobs:
       NODE_ENV: test
       VERSION_INFO_GIT_REF: ${{ github.ref }}
       DC_ACCOUNTS_DIR: ../../e2e-tests/data/accounts
+      DC_CHATMAIL_DOMAIN: ${{ vars.DC_CHATMAIL_DOMAIN }}
+      DC_MAIL_SERVER: ${{ vars.CI_MAIL_SERVER }}
+      DC_MAIL_SERVER_TOKEN: ${{ secrets.CI_MAIL_SERVER_TOKEN }}
     timeout-minutes: 60
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest]
       fail-fast: false
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4
       with:
-        node-version: 20.x
+        node-version: 22.x
     - name: Install dependencies
       run: npm install -g pnpm && pnpm install
     - name: Install Playwright Browsers
       working-directory: ./packages/e2e-tests
-      run: npx playwright install --with-deps
+      run: npx playwright install --with-deps --only-shell chromium
     - name: create data dir
       run: mkdir -p packages/target-browser/data
     - name: Run e2e tests
-      run: pnpm e2e --project Chrome
+      run: pnpm e2e
     - uses: actions/upload-artifact@v4
-      if: ${{ failure() && !cancelled() }}
+      # We may want to not upload artifacts if tests pass,
+      # (`if: ${{ failure() && !cancelled() }}`)
+      # but we want to debug flaky tests, so let's always upload them.
+      if: ${{ !cancelled() }}
       with:
         name: e2e-report
         path: packages/e2e-tests/playwright-report

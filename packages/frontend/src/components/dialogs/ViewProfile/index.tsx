@@ -2,6 +2,7 @@ import AutoSizer from 'react-virtualized-auto-sizer'
 import React, { useState, useEffect, useRef } from 'react'
 import moment from 'moment'
 import { C } from '@deltachat/jsonrpc-client'
+import classNames from 'classnames'
 
 import { useChatList } from '../../chat/ChatListHelpers'
 import { useLogicVirtualChatList, ChatListPart } from '../../chat/ChatList'
@@ -29,6 +30,7 @@ import type { DialogProps } from '../../../contexts/DialogContext'
 import type { T } from '@deltachat/jsonrpc-client'
 import { RovingTabindexProvider } from '../../../contexts/RovingTabindex'
 import { ChatListItemRowChat } from '../../chat/ChatListItemRow'
+import { shouldDisableClickForFullscreen } from '../../Avatar'
 
 const log = getLogger('renderer/dialogs/ViewProfile')
 
@@ -80,7 +82,7 @@ export default function ViewProfile(
 
   const showMenu = !(isDeviceChat || isSelfChat)
 
-  const onClickViewProfileMenu = useViewProfileMenu(contact)
+  const onClickViewProfileMenu = useViewProfileMenu(contact, onClose)
 
   return (
     <Dialog
@@ -95,14 +97,15 @@ export default function ViewProfile(
         onClickBack={onBack}
       >
         {showMenu && (
-          <HeaderButton
-            id='view-profile-menu'
-            onClick={onClickViewProfileMenu}
-            icon='more'
-            iconSize={24}
-            rotation={90}
-            aria-label='Profile Menu'
-          ></HeaderButton>
+          <>
+            <HeaderButton
+              id='view-profile-menu'
+              onClick={onClickViewProfileMenu}
+              icon='more_vert'
+              iconSize={24}
+              aria-label='Profile Menu'
+            />
+          </>
         )}
       </DialogHeader>
       <DialogBody className={styles.viewProfileDialogBody}>
@@ -146,7 +149,7 @@ export function ViewProfileInner({
 
   const onChatClick = (chatId: number) => {
     selectChat(accountId, chatId)
-    onAction && onAction()
+    onAction?.()
     onClose()
   }
   const onSendMessage = async () => {
@@ -179,28 +182,33 @@ export function ViewProfileInner({
 
   useEffect(() => {
     ;(async () => {
-      if (contact.verifierId === null) {
-        setVerifier(null)
-      } else if (contact.verifierId === C.DC_CONTACT_ID_SELF) {
-        setVerifier({ label: tx('verified_by_you') })
+      if (contact.isVerified) {
+        // it might happen that a verified contact has no verifiedBy ID
+        setVerifier({ label: tx('verified_by_unknown') })
       } else {
-        setVerifier(null) // make sure it rather shows nothing than wrong values
+        setVerifier(null) // will be overridden if verifiedBy ID is available
+      }
+
+      if (contact.verifierId === C.DC_CONTACT_ID_SELF) {
+        setVerifier({ label: tx('verified_by_you') })
+      } else if (contact.verifierId !== null) {
         const verifierContactId = contact.verifierId
         try {
           const { displayName } = await BackendRemote.rpc.getContact(
             accountId,
             verifierContactId
           )
-          setVerifier({
-            label: tx('verified_by', displayName),
-            action: () => openViewProfileDialog(accountId, verifierContactId),
-          })
+          if (displayName && displayName !== '') {
+            setVerifier({
+              label: tx('verified_by', displayName),
+              action: () => openViewProfileDialog(accountId, verifierContactId),
+            })
+          }
         } catch (error) {
           log.error('failed to load verifier contact', error)
           setVerifier({
             label:
               'verified by: failed to load verifier contact, please report this issue',
-            action: () => openViewProfileDialog(accountId, verifierContactId),
           })
         }
       }
@@ -209,6 +217,7 @@ export function ViewProfileInner({
     accountId,
     contact.id,
     contact.verifierId,
+    contact.isVerified,
     openDialog,
     openViewProfileDialog,
     tx,
@@ -231,36 +240,56 @@ export function ViewProfileInner({
     avatarPath = selfChatAvatar
   }
 
+  // edge case: if there are more than 150 mutual chats,
+  // we load them in a virtual list
+  const maxChatItemsOnFirstLoad = 150
+  // and limit the height to 5 visible items
   const maxMinHeightItems = 5
-  const mutualChatsMinHeight =
-    CHATLISTITEM_CHAT_HEIGHT *
-    Math.max(Math.min(maxMinHeightItems, chatListIds.length), 1)
+  const mutualChatsHeightFactor =
+    chatListIds.length > maxChatItemsOnFirstLoad
+      ? Math.max(Math.min(maxMinHeightItems, chatListIds.length), 1)
+      : chatListIds.length
 
+  const mutualChatsHeight = CHATLISTITEM_CHAT_HEIGHT * mutualChatsHeightFactor
   const VerificationTag = verifier?.action ? 'button' : 'div'
 
   return (
     <>
       <DialogContent>
         <ProfileInfoHeader
-          address={addressLine}
           avatarPath={avatarPath ? avatarPath : undefined}
           color={contact.color}
           displayName={displayName}
-          isVerified={contact.isProfileVerified}
           wasSeenRecently={contact.wasSeenRecently}
+          disableFullscreen={
+            isSelfChat ||
+            isDeviceChat ||
+            shouldDisableClickForFullscreen(contact)
+          }
         />
-        {!isSelfChat && (
-          <div className='contact-attributes'>
-            {verifier && (
-              <VerificationTag
-                className='verification'
-                onClick={verifier.action}
-                style={{ display: 'flex' }}
+        {statusText !== '' && (
+          <>
+            <div className={styles.statusText}>
+              <MessagesDisplayContext.Provider
+                value={{
+                  context: 'contact_profile_status',
+                  contact_id: contact.id,
+                  closeProfileDialog: onClose,
+                }}
               >
-                <InlineVerifiedIcon />
-                {verifier.label}
-              </VerificationTag>
-            )}
+                <MessageBody text={statusText} disableJumbomoji />
+              </MessagesDisplayContext.Provider>
+            </div>
+            <div
+              className={classNames(
+                'group-separator',
+                styles.extendedSeparator
+              )}
+            ></div>
+          </>
+        )}
+        {!isSelfChat && (
+          <div className={styles.contactAttributes}>
             {contact.lastSeen !== 0 && (
               <div>
                 <i className='material-svg-icon material-icon-schedule' />
@@ -276,58 +305,37 @@ export function ViewProfileInner({
           </div>
         )}
       </DialogContent>
-      <div
-        style={{
-          display: 'flex',
-          margin: '20px 0px',
-          justifyContent: 'center',
-        }}
-      >
+      <div className={styles.buttonWrap}>
         {!isDeviceChat && !contact.isBlocked && (
-          <Button styling='primary' onClick={onSendMessage}>
-            {tx('send_message')}
-          </Button>
+          <Button onClick={onSendMessage}>{tx('send_message')}</Button>
         )}
         {!isDeviceChat && contact.isBlocked && (
-          <Button styling='primary' onClick={onUnblockContact}>
+          <Button onClick={onUnblockContact}>
             {tx('menu_unblock_contact')}
           </Button>
         )}
       </div>
-      {statusText != '' && (
-        <>
-          <div className='group-separator'>
-            {tx('pref_default_status_label')}
-          </div>
-          <div className={styles.statusText}>
-            <MessagesDisplayContext.Provider
-              value={{
-                context: 'contact_profile_status',
-                contact_id: contact.id,
-                closeProfileDialog: onClose,
-              }}
-            >
-              <MessageBody text={statusText} disableJumbomoji />
-            </MessagesDisplayContext.Provider>
-          </div>
-        </>
-      )}
       {!(isDeviceChat || isSelfChat) && (
         <>
-          <div className='group-separator'>{tx('profile_shared_chats')}</div>
+          <div id='view-profile-mutual-chats-title' className='group-separator'>
+            {tx('profile_shared_chats')}
+          </div>
           <div
             ref={mutualChatsListRef}
-            className='mutual-chats'
-            style={{ flexGrow: 1, minHeight: mutualChatsMinHeight }}
+            className={styles.mutualChats}
+            style={{ minHeight: mutualChatsHeight }}
           >
             <RovingTabindexProvider wrapperElementRef={mutualChatsListRef}>
-              <AutoSizer>
-                {({ width, height }) => (
+              <AutoSizer disableWidth>
+                {({ height }) => (
                   <ChatListPart
+                    olElementAttrs={{
+                      'aria-labelledby': 'view-profile-mutual-chats-title',
+                    }}
                     isRowLoaded={isChatLoaded}
                     loadMoreRows={loadChats}
                     rowCount={chatListIds.length}
-                    width={width}
+                    width={'100%'}
                     height={height}
                     itemKey={index => 'key' + chatListIds[index]}
                     itemHeight={CHATLISTITEM_CHAT_HEIGHT}
@@ -336,8 +344,8 @@ export function ViewProfileInner({
                       chatListIds,
                       onChatClick,
 
-                      selectedChatId: null,
-                      activeContextMenuChatId: null,
+                      activeChatId: null,
+                      activeContextMenuChatIds: [],
                       openContextMenu: async () => {},
                     }}
                   >
@@ -347,6 +355,26 @@ export function ViewProfileInner({
               </AutoSizer>
             </RovingTabindexProvider>
           </div>
+          {!isSelfChat && (
+            <div className={styles.contactAttributesBottom}>
+              {verifier && (
+                <VerificationTag
+                  className={styles.verification}
+                  onClick={verifier.action}
+                  style={{ display: 'flex' }}
+                >
+                  <InlineVerifiedIcon />
+                  {verifier.label}
+                </VerificationTag>
+              )}
+              {contact.address && (
+                <div className={styles.addressLine}>
+                  <i className='material-svg-icon material-icon-server' />
+                  {addressLine}
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
     </>

@@ -4,7 +4,6 @@ import { join } from 'path'
 
 import {
   gitHubIssuesUrl,
-  gitHubUrl,
   homePageUrl,
   appWindowTitle,
 } from '../../shared/constants.js'
@@ -20,20 +19,28 @@ import { getLocaleDirectoryPath } from './getLocaleDirectory.js'
 
 const log = getLogger('main/menu')
 
-const languages: {
+export const languages: {
   locale: string
   name: string
+  dir: 'ltr' | 'rtl'
 }[] = (() => {
   const languagesFile = join(getLocaleDirectoryPath(), '_languages.json')
-  const rawLanguageList: { [locale: string]: string } = JSON.parse(
-    readFileSync(languagesFile, 'utf8')
-  )
+  const rawLanguageList: {
+    [locale: string]: string | { name: string; dir?: 'ltr' | 'rtl' }
+  } = JSON.parse(readFileSync(languagesFile, 'utf8'))
 
   return Object.keys(rawLanguageList)
-    .map(locale => ({
-      locale: locale,
-      name: rawLanguageList[locale],
-    }))
+    .map(locale => {
+      const data =
+        typeof rawLanguageList[locale] === 'string'
+          ? { name: rawLanguageList[locale] }
+          : rawLanguageList[locale]
+      return {
+        locale: locale,
+        name: data.name,
+        dir: data.dir || 'ltr',
+      }
+    })
     .filter(({ name }) => name.indexOf('*') === -1)
     .sort(({ name: name1 }, { name: name2 }) => (name1 > name2 ? 1 : -1))
 })()
@@ -78,46 +85,6 @@ function getAvailableLanguages(): Electron.MenuItemConstructorOptions[] {
       click: () => {
         DesktopSettings.update({ locale })
         mainWindow.chooseLanguage(locale)
-      },
-    }
-  })
-}
-
-function getZoomFactors(): Electron.MenuItemConstructorOptions[] {
-  // for now this solution is electron specific
-  const zoomFactors = [
-    { scale: 0.6, key: 'extra_small' },
-    { scale: 0.8, key: 'small' },
-    { scale: 1.0, key: 'normal' },
-    { scale: 1.2, key: 'large' },
-    { scale: 1.4, key: 'extra_large' },
-  ]
-
-  const currentZoomFactor = DesktopSettings.state.zoomFactor
-
-  if (zoomFactors.map(({ scale }) => scale).indexOf(currentZoomFactor) === -1)
-    zoomFactors.push({
-      scale: currentZoomFactor,
-      key: 'custom',
-    })
-
-  return zoomFactors.map(({ key, scale }) => {
-    return {
-      label: !(scale === 1 && key === 'custom')
-        ? `${scale}x ${tx(key)}`
-        : tx('custom'),
-      type: 'radio',
-      checked:
-        scale === DesktopSettings.state.zoomFactor &&
-        !(scale === 1 && key === 'custom'),
-      click: () => {
-        if (key !== 'custom') {
-          DesktopSettings.update({ zoomFactor: scale })
-          mainWindow.setZoomFactor(scale)
-        } else {
-          // todo? currently it is a no-op and the 'option' is only shown
-          // when the config value was changed by the user
-        }
       },
     }
   })
@@ -289,25 +256,28 @@ export function getHelpMenu(
         accelerator: isMac ? 'Cmd+/' : 'Ctrl+/',
       },
       {
-        label: tx('global_menu_help_learn_desktop'),
+        type: 'separator',
+      },
+      {
+        label: tx('delta_chat_homepage'),
         click: () => {
           shell.openExternal(homePageUrl)
         },
       },
       {
-        label: tx('global_menu_help_contribute_desktop'),
+        label: tx('contribute'),
         click: () => {
-          shell.openExternal(gitHubUrl)
+          shell.openExternal('https://delta.chat/contribute')
         },
-      },
-      {
-        type: 'separator',
       },
       {
         label: tx('global_menu_help_report_desktop'),
         click: () => {
           shell.openExternal(gitHubIssuesUrl)
         },
+      },
+      {
+        type: 'separator',
       },
       {
         label: tx('global_menu_help_about_desktop'),
@@ -338,8 +308,19 @@ function getMenuTemplate(
           click: () => mainWindow.toggleAlwaysOnTop(),
         },
         {
-          label: tx('zoom'),
-          submenu: getZoomFactors(),
+          accelerator: 'CmdOrCtrl+=',
+          label: tx('menu_zoom_in'),
+          role: 'zoomIn',
+        },
+        {
+          accelerator: 'CmdOrCtrl+-',
+          label: tx('menu_zoom_out'),
+          role: 'zoomOut',
+        },
+        {
+          accelerator: 'CmdOrCtrl+0',
+          label: `${tx('reset')}`,
+          role: 'resetZoom',
         },
         {
           label: tx('pref_language'),

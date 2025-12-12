@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import debounce from 'debounce'
+import { throttle } from '@deltachat-desktop/shared/util'
 
 import { ContactList } from '../contact/ContactList'
 import { BackendRemote, onDCEvent, Type } from '../../backend-com'
@@ -27,7 +27,7 @@ export default function UnblockContacts({ onClose }: DialogProps) {
     return onDCEvent(
       accountId,
       'ContactsChanged',
-      debounce(onContactsUpdate, 500)
+      throttle(onContactsUpdate, 500)
     )
   }, [accountId])
 
@@ -52,17 +52,10 @@ export default function UnblockContacts({ onClose }: DialogProps) {
       title={tx('pref_blocked_contacts')}
     >
       <DialogBody>
-        <DialogContent>
+        <DialogContent className='blocked-contacts'>
           {blockedContacts.length === 0 && <p>{tx('blocked_empty_hint')}</p>}
           {blockedContacts.length > 0 && (
-            <div
-              ref={wrapperRef}
-              style={{
-                overflow: 'scroll',
-                height: '100%',
-                backgroundColor: 'var(--bp4DialogBgPrimary)',
-              }}
-            >
+            <div ref={wrapperRef}>
               <RovingTabindexProvider wrapperElementRef={wrapperRef}>
                 <ContactList
                   contacts={blockedContacts}

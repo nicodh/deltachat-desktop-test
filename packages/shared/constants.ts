@@ -20,7 +20,6 @@ export const enum Timespans {
 export const enum AutodeleteDuration {
   NEVER = Timespans.ZERO_SECONDS,
   AT_ONCE = Timespans.ONE_SECOND,
-  ONE_MINUTE = Timespans.ONE_MINUTE_IN_SECONDS,
   ONE_HOUR = Timespans.ONE_HOUR_IN_SECONDS,
   ONE_DAY = Timespans.ONE_DAY_IN_SECONDS,
   ONE_WEEK = Timespans.ONE_WEEK_IN_SECONDS,
@@ -30,6 +29,8 @@ export const enum AutodeleteDuration {
 
 export const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'apng', 'gif', 'webp']
 
-// Videochat Server URLs
-export const VIDEO_CHAT_INSTANCE_SYSTEMLI = 'https://meet.systemli.org/$ROOM'
-export const VIDEO_CHAT_INSTANCE_AUTISTICI = 'https://vc.autistici.org/$ROOM'
+export const enum NOTIFICATION_TYPE {
+  MESSAGE,
+  REACTION,
+  WEBXDC_INFO,
+}

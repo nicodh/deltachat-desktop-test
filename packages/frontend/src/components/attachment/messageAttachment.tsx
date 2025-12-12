@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import classNames from 'classnames'
 import { filesize } from 'filesize'
 
@@ -13,7 +13,6 @@ import {
   MessageTypeAttachmentSubset,
 } from './Attachment'
 import { runtime } from '@deltachat-desktop/runtime-interface'
-import { ConversationType } from '../message/MessageList'
 import { getDirection } from '../../utils/getDirection'
 import { Type } from '../../backend-com'
 import FullscreenMedia, {
@@ -24,20 +23,19 @@ import useDialog from '../../hooks/dialog/useDialog'
 import AudioPlayer from '../AudioPlayer'
 import { T } from '@deltachat/jsonrpc-client'
 import { selectedAccountId } from '../../ScreenController'
+import { BackendRemote } from '../../backend-com'
+import { useRpcFetch } from '../../hooks/useFetch'
+import { useHasChanged2 } from '../../hooks/useHasChanged'
 
 type AttachmentProps = {
   text?: string
-  conversationType: ConversationType
   message: Type.Message
-  hasQuote: boolean
   tabindexForInteractiveContents: -1 | 0
 }
 
 export default function Attachment({
   text,
-  conversationType,
   message,
-  hasQuote,
   tabindexForInteractiveContents,
 }: AttachmentProps) {
   const tx = useTranslationFunction()
@@ -59,24 +57,71 @@ export default function Attachment({
     }
   }
 
+  /**
+   * height has to be calculated before images are loaded to enable
+   * the virtual list to calculate the correct height of all messages
+   *
+   * if the image exceeds the maximal width or height it will be scaled down
+   * if the image exceeds the minimal width or height it will be scaled up
+   *
+   * if after resizing one dimension exceeds a maximum it will be cropped
+   * by css rules: max-width/max-height with object-fit: cover
+   */
+  const calculateHeight = (
+    message: Pick<
+      T.Message,
+      'dimensionsHeight' | 'dimensionsWidth' | 'viewType'
+    >
+  ): number => {
+    const minWidth = 200 // needed for readable footer & reactions
+    const minHeight = 50 // needed for readable footer
+    const maxLandscapeWidth = 450 // also set by css
+    const maxPortraitHeight = 450 // also set by css
+    const stickerHeight = 200
+
+    if (message.viewType === 'Sticker') {
+      return stickerHeight
+    }
+
+    const height = message.dimensionsHeight
+    const width = message.dimensionsWidth
+    const portrait = isPortrait(message)
+    let finalHeight: number
+    if (portrait) {
+      // limit height if needed
+      finalHeight = Math.min(height, maxPortraitHeight)
+      if (height < maxPortraitHeight) {
+        if ((finalHeight / height) * width < minWidth) {
+          // stretch image to have minWidth
+          finalHeight = (height / width) * minWidth
+        }
+      }
+    } else {
+      // make sure image is not wider than maxWidth
+      finalHeight = Math.min(height, (maxLandscapeWidth / width) * height)
+      if ((finalHeight / height) * width < minWidth) {
+        // stretch image to have minWidth
+        finalHeight = (height / width) * minWidth
+      }
+      if (finalHeight < minHeight) {
+        finalHeight = minHeight
+      }
+    }
+    return finalHeight
+  }
+
   const isPortrait = (
     message: Pick<T.Message, 'dimensionsHeight' | 'dimensionsWidth'>
-  ) => {
+  ): boolean => {
     if (message.dimensionsHeight === 0 || message.dimensionsWidth === 0) {
       return false
     }
-    return message.dimensionsWidth / message.dimensionsHeight <= 3 / 4
+    return message.dimensionsHeight > message.dimensionsWidth
   }
+
   const withCaption = Boolean(text)
   // For attachments which aren't full-frame
   const withContentBelow = withCaption
-  const withContentAbove =
-    message.overrideSenderName != null ||
-    hasQuote ||
-    (conversationType.hasMultipleParticipants && direction === 'incoming')
-  // const dimensions = message.msg.dimensions || {}
-  // Calculating height to prevent reflow when image loads
-  // const height = Math.max(MINIMUM_IMG_HEIGHT, (dimensions as any).height || 0)
   if (isImage(message.fileMime) || message.viewType === 'Sticker') {
     if (!message.file) {
       return (
@@ -89,20 +134,22 @@ export default function Attachment({
     }
     return (
       <button
+        type='button'
         onClick={onClickAttachment}
         tabIndex={tabindexForInteractiveContents}
         className={classNames(
           'message-attachment-media',
-          withCaption ? 'content-below' : null,
-          withContentAbove ? 'content-above' : null
+          withCaption ? 'content-below' : null
         )}
       >
         <img
           className={classNames(
             'attachment-content',
-            isPortrait(message) ? 'portrait' : null
+            isPortrait(message) ? 'portrait' : null,
+            message.viewType === 'Sticker' ? 'sticker' : null
           )}
           src={runtime.transformBlobURL(message.file)}
+          height={calculateHeight(message)}
         />
       </button>
     )
@@ -110,6 +157,7 @@ export default function Attachment({
     if (!message.file) {
       return (
         <button
+          type='button'
           onClick={onClickAttachment}
           tabIndex={tabindexForInteractiveContents}
           style={{ cursor: 'pointer' }}
@@ -124,8 +172,7 @@ export default function Attachment({
       <div
         className={classNames(
           'message-attachment-media',
-          withCaption ? 'content-below' : null,
-          withContentAbove ? 'content-above' : null
+          withCaption ? 'content-below' : null
         )}
       >
         <video
@@ -143,8 +190,7 @@ export default function Attachment({
       <div
         className={classNames(
           'message-attachment-audio',
-          withContentBelow ? 'content-below' : null,
-          withContentAbove ? 'content-above' : null
+          withContentBelow ? 'content-below' : null
         )}
       >
         <AudioPlayer
@@ -160,10 +206,10 @@ export default function Attachment({
     const extension = getExtension(message)
     return (
       <button
+        type='button'
         className={classNames(
           'message-attachment-generic',
-          withContentBelow ? 'content-below' : null,
-          withContentAbove ? 'content-above' : null
+          withContentBelow ? 'content-below' : null
         )}
         onClick={onClickAttachment}
         tabIndex={tabindexForInteractiveContents}
@@ -182,7 +228,7 @@ export default function Attachment({
         </div>
         <div className='text-part'>
           <div className='name'>{fileName}</div>
-          <div className='size'>{fileBytes ? filesize(fileBytes) : '?'}</div>
+          <div className='size'>{filesize(fileBytes ?? 0)}</div>
         </div>
       </button>
     )
@@ -194,6 +240,24 @@ export function DraftAttachment({
 }: {
   attachment: MessageTypeAttachmentSubset
 }) {
+  const isViewTypeWebxdc = attachment.viewType === 'Webxdc'
+  const [attachmentIdToLoad, setAttachmentIdToLoad] = useState(attachment.id)
+  const webxdcInfoFetch = useRpcFetch(
+    BackendRemote.rpc.getWebxdcInfo,
+    isViewTypeWebxdc ? [selectedAccountId(), attachmentIdToLoad] : null
+  )
+  const hasFileNameChanged = useHasChanged2(attachment.fileName)
+  if (hasFileNameChanged || webxdcInfoFetch?.result?.ok === false) {
+    // Only reload webxdc info if filename has changed, because
+    // the `id` itself could be changing as often as we update the draft.
+    //
+    // Additionally, since this is a draft message, a draft could get replaced,
+    // i.e. the draft message could get deleted. If that happens,
+    // the fetch will fail. In such a case let's also make sure
+    // that we're fetching the latest draft.
+    setAttachmentIdToLoad(attachment.id)
+  }
+
   if (!attachment) {
     return null
   }
@@ -218,16 +282,22 @@ export function DraftAttachment({
     )
   } else if (isAudio(attachment.fileMime)) {
     return <AudioPlayer src={runtime.transformBlobURL(attachment.file || '')} />
-  } else if (attachment.webxdcInfo) {
+  } else if (isViewTypeWebxdc) {
     const iconUrl = runtime.getWebxdcIconURL(selectedAccountId(), attachment.id)
     return (
       <div className='media-attachment-webxdc'>
         <img className='icon' src={iconUrl} alt='app icon' />
         <div className='text-part'>
-          <div className='name'>{attachment.webxdcInfo.name}</div>
-          <div className='size'>
-            {attachment.fileBytes ? filesize(attachment.fileBytes) : '?'}
+          <div className='name'>
+            {/* `webxdcInfoFetch` is never `null` here, but TypeScript
+            doesn't know it. */}
+            {webxdcInfoFetch?.loading
+              ? 'Loading...'
+              : webxdcInfoFetch?.result.ok
+                ? webxdcInfoFetch.result.value.name
+                : 'Unknown App'}
           </div>
+          <div className='size'>{filesize(attachment.fileBytes ?? 0)}</div>
         </div>
       </div>
     )
@@ -251,7 +321,7 @@ export function DraftAttachment({
         </div>
         <div className='text-part'>
           <div className='name'>{fileName}</div>
-          <div className='size'>{fileBytes ? filesize(fileBytes) : '?'}</div>
+          <div className='size'>{filesize(fileBytes ?? 0)}</div>
         </div>
       </div>
     )

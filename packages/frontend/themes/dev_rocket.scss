@@ -1,40 +1,41 @@
+/* Set theme variables used for theme Generation */
+@use './_themebase' with (
+  $themeDarkOrLight: light,
+  $accentColor: #000000,
+  $bgChatView: #e6dcd4,
+  $bgImage: url('./images/background_light.svg'),
+  $bgMessageBubbleIncoming: #ecececaf,
+  $bgMessageBubbleOutgoing: #efffde,
+  $bgNavBar: #fff,
+  $bgPrimary: #fff,
+  $bgSecondary: #f5f5f5,
+  $chatListItemSelectedBg: #4c6e7d,
+  $colorDanger: #f96856,
+  $colorNone: #a0a0a0,
+  $colorPrimary: #000000,
+  $newChatButtonBg: gray,
+  $keybindingHintsBoxBackground: rgba(0, 0, 0, 0.05),
+  $keybindingActionBackground: rgba(0, 0, 0, 0.05),
+  $keybindingKeyBackground: lightgray,
+  $keybindingKeyBorder: gray,
+  $keybindingKeyShadow: rgba(0, 0, 0, 0.35),
+  $textPrimary: #010101,
+  $textSecondary: #62656a,
+  $textNavBar: #010101,
+  $btnPrimaryText: #fff,
+  $btnDangerText: #fff,
+  $btnDangerBackground: #f96856,
+
+  $scrollbarTransparency: 0.5
+);
+
+$borderColor: #ecececaf;
+$navbarBgLight: $borderColor;
+
 .theme-meta {
   --name: 'Rocket';
   --description: 'A theme supposed to look like Rocket.chat';
 }
-
-$borderColor: #ecececaf;
-
-$navbarBgLight: $borderColor;
-
-/* Set theme variables used for theme Generation */
-$outlineColor: #b9b9b9;
-$accentColor: #000000;
-$bgChatView: #e6dcd4;
-$bgImage: url('./images/background_light.svg');
-$bgMessageBubbleIncoming: $navbarBgLight;
-$bgMessageBubbleOutgoing: #efffde;
-$bgNavBar: #fff;
-$bgPrimary: #fff;
-$bgSecondary: #f5f5f5;
-$chatListItemSelectedBg: #4c6e7d;
-$colorDanger: #f96856;
-$colorNone: #a0a0a0;
-$colorPrimary: #000000;
-$floatingActionButtonBg: gray;
-$keybindingHintsBoxBackground: rgba(0, 0, 0, 0.05);
-$keybindingActionBackground: rgba(0, 0, 0, 0.05);
-$keybindingKeyBackground: lightgray;
-$keybindingKeyBorder: gray;
-$keybindingKeyShadow: rgba(0, 0, 0, 0.35);
-$textPrimary: #010101;
-$textSecondary: #62656a;
-$textNavBar: $textPrimary;
-
-$scrollbarTransparency: 0.5;
-
-/* Derive the themedata from the theme variables */
-@import '_themebase.scss';
 
 /* overwrite themedata */
 :root {
@@ -58,10 +59,10 @@ $scrollbarTransparency: 0.5;
   --navBarGroupSubtitle: var(--globalText);
   --messageStatusIcon: var(--globalText);
   --messageMetadataIncoming: var(--globalText);
-  --messagePadlockIncoming: var(--globalText);
+  --messageMetadataIconColorIncoming: var(--globalText);
 
   --messageText: hsl(0, 0%, 26.7%);
-  --messageOutgoingBg: var(--messagePadlockOutgoing);
+  --messageOutgoingBg: var(--messageMetadataIconColorOutgoing);
   --messageQuotedText: var(--globalText);
 
   --chat-list-width: 280px;
@@ -76,43 +77,12 @@ $scrollbarTransparency: 0.5;
 
 /* overwrite css */
 
-.bp4-button.bp4-minimal:active,
-.bp4-button.bp4-minimal.bp4-active,
-.bp4-button.bp4-minimal:hover {
-  background: $navbarBgLight;
-}
-
-.bp4-button.bp4-minimal:hover {
-  font-weight: normal;
-}
-
 .main-screen .navbar-chat-name {
   font-weight: normal;
 }
 
 .main-screen .navbar-chat-subtitle {
   font-weight: normal;
-}
-
-.navbar-wrapper {
-  .bp4-icon > svg:not([fill]) {
-    fill: var(--globalText);
-  }
-  .bp4-align-left {
-    border-right: solid 1px $borderColor;
-    border-bottom: solid 1px $borderColor;
-  }
-
-  span.views {
-    .bp4-button {
-      background: unset;
-      border-bottom: 3px solid transparent;
-      padding-top: 10px;
-      &.bp4-active {
-        border-bottom-color: black;
-      }
-    }
-  }
 }
 
 .chat-list {
@@ -122,23 +92,12 @@ $scrollbarTransparency: 0.5;
 }
 
 .chat-list,
-.chat-list > div,
-.bp4-navbar > :nth-child(1) {
+.chat-list > div {
   width: var(--chat-list-width);
 }
 
-.message-list-and-composer,
-.bp4-navbar > :nth-child(2) {
+.message-list-and-composer {
   width: calc(100% - var(--chat-list-width));
-}
-
-.bp4-navbar {
-  -webkit-box-shadow: none;
-  box-shadow: none;
-}
-
-.navbar-wrapper .bp4-align-right {
-  border-bottom: solid 1px $borderColor;
 }
 
 .composer {
@@ -146,18 +105,6 @@ $scrollbarTransparency: 0.5;
   border-top: 1px solid $borderColor;
 }
 
-.bp4-dialog {
-  box-shadow:
-    0 0 0 1px rgba(16, 22, 26, 0.1),
-    0 4px 8px rgba(16, 22, 26, 0.2),
-    0 0 30px 0px rgba(16, 22, 26, 0.2);
-  transition: none;
-}
-
-.bp4-dialog-header,
-.bp4-dialog-footer {
-  border-radius: 0px;
-}
 .message .msg-container {
   border-radius: 0px;
   padding: 0px;
@@ -188,11 +135,6 @@ $scrollbarTransparency: 0.5;
 }
 
 .attachment-overlay {
-  .bp4-overlay-backdrop {
-    backdrop-filter: blur(2px);
-    background-color: transparent;
-  }
-
   .btn-wrapper {
     padding: 5px;
     width: 100%;
@@ -221,10 +163,6 @@ $scrollbarTransparency: 0.5;
       max-width: calc(100vw - 200px);
       height: 100%;
     }
-  }
-
-  .bp4-icon > svg {
-    fill: rgb(160, 160, 160);
   }
 }
 
@@ -281,19 +219,19 @@ $scrollbarTransparency: 0.5;
 }
 .message.outgoing .metadata > .status-icon.read,
 .message.outgoing .metadata > .status-icon.delivered,
-.message.outgoing .metadata > .padlock-icon,
-.metadata.with-image-no-caption > .padlock-icon {
-  background-color: var(--messagePadlockIncoming);
+.message.outgoing .metadata > .email-icon,
+.metadata.with-image-no-caption > .email-icon {
+  background-color: var(--messageMetadataIconColorIncoming);
 }
 
 .message.outgoing .metadata > .date,
 .metadata.with-image-no-caption > .date {
   color: var(--messageMetadataIncoming);
 }
-.metadata.with-image-no-caption > .padlock-icon {
-  -webkit-mask: url(./images/padlock.svg) no-repeat center;
+.metadata.with-image-no-caption > .email-icon {
+  -webkit-mask: url(./images/icons/email.svg) no-repeat center;
   -webkit-mask-size: 125%;
-  background-color: var(--messagePadlockIncoming);
+  background-color: var(--messageMetadataIconColorIncoming);
 }
 
 .message > .author-avatar {
@@ -304,7 +242,7 @@ $scrollbarTransparency: 0.5;
 }
 .message.forwarded .forwarded-indicator {
   font-weight: 100;
-  color: var(--messagePadlockIncoming);
+  color: var(--messageMetadataIconColorIncoming);
   opacity: 1;
 }
 
@@ -317,33 +255,18 @@ $scrollbarTransparency: 0.5;
   background-image: unset !important;
 }
 
-.composer .lower-bar .send-button-wrapper button {
+.composer .lower-bar .send-button .paper-plane {
   background-blend-mode: difference;
   background-repeat: no-repeat;
   background-color: white;
 }
 
-.composer .lower-bar .send-button-wrapper {
+.composer .lower-bar .send-button {
   background-color: transparent;
-}
-
-.bp4-button .bp4-icon,
-.bp4-button .bp4-icon-standard,
-.bp4-button .bp4-icon-large {
-  color: var(--globalText);
 }
 
 .selected .status-icon {
   background-color: var(--chatListItemSelectedText);
-}
-
-.bp4-tab[aria-selected='true'] {
-  box-shadow: inset 0 -3px 0 black;
-}
-
-.bp4-tab:not([aria-disabled='true']):hover,
-.bp4-tab[aria-selected='true'] {
-  color: black;
 }
 
 .status-icon.draft {
@@ -369,11 +292,6 @@ div.group-image-wrapper div.group-image-edit-button {
   &:not(:first-child) {
     border-top: 1px solid #ececec;
   }
-}
-
-.bp4-navbar > :first-child {
-  border-bottom-color: hsla(216, 13.9%, 14.1%, 0.4);
-  box-shadow: hsl(214.3, 6.1%, 45.1%) 0 0 2px;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -423,7 +341,7 @@ div.group-image-wrapper div.group-image-edit-button {
   bottom: unset;
 }
 
-.message .msg-container .metadata .padlock-icon,
+.message .msg-container .metadata .email-icon,
 .message .msg-container .metadata .status-icon.read {
   display: none;
 }
@@ -440,8 +358,7 @@ div.group-image-wrapper div.group-image-edit-button {
 }
 */
 
-.chat-list,
-.bp4-navbar > :first-child {
+.chat-list {
   background-color: hsl(218.6, 13%, 21.2%);
   color: hsl(216, 5.4%, 63.9%);
 }
@@ -466,10 +383,6 @@ div.group-image-wrapper div.group-image-edit-button {
 .message-list-and-composer__message-list ul li {
   margin-bottom: 1rem;
   margin-left: 18px; /* magic number */
-}
-
-.navbar-wrapper .bp4-navbar-heading {
-  margin-left: 24px;
 }
 
 .message {
@@ -570,7 +483,7 @@ div.group-image-wrapper div.group-image-edit-button {
 
     .emoji-button,
     .attachment-button,
-    .send-button-wrapper {
+    .send-button {
       width: 50px;
       display: flex;
       justify-content: center;
@@ -580,12 +493,11 @@ div.group-image-wrapper div.group-image-edit-button {
       order: 1;
     }
 
-    .send-button-wrapper {
+    .send-button {
       order: 3;
       display: none;
     }
 
-    .attachment-button .bp4-button.bp4-minimal,
     .emoji-button {
       min-height: 0;
       height: 24px;
@@ -606,27 +518,22 @@ div.group-image-wrapper div.group-image-edit-button {
   }
 }
 
-.navbar-wrapper {
-  .navbar-chat-name {
-    color: black;
-    font-weight: bold;
-  }
+.navbar-chat-name {
+  color: black;
+  font-weight: bold;
+}
 
-  .navbar-chat-subtile {
-    color: hsl(0, 0%, 40%);
-  }
+.navbar-chat-subtile {
+  color: hsl(0, 0%, 40%);
 }
 
 .chat-list-item {
   height: 42px;
 }
 
-.bp4-menu-item:hover,
-.bp4-submenu .bp4-popover-target.bp4-popover-open > .bp4-menu-item,
 .SettingsSelector:hover button,
 .SettingsSelector:hover .CurrentValue,
 .SettingsButton:hover button,
-.bp4-control.bp4-switch:hover,
 .SettingsIconButton:hover button {
   color: white !important;
 }

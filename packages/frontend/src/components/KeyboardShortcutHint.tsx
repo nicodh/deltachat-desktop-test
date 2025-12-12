@@ -111,42 +111,6 @@ export function ShortcutGroup({ title, keyBindings }: ShortcutAction) {
   )
 }
 
-export function KeybordShortcutHintInSettings({
-  actions,
-}: {
-  actions: ShortcutAction[]
-}) {
-  return (
-    <div className='keyboard-hints-box'>
-      {actions.map(action => (
-        <ShortcutGroup
-          key={action.title}
-          title={action.title}
-          keyBindings={action.keyBindings}
-        />
-      ))}
-    </div>
-  )
-}
-
-// export function KeybordShortcutHintPopover() {
-//   return (
-//     <div className='keyboard-hints-popover'>
-//       <Action
-//         title='Insert newline'
-//         keyBindings={[
-//           ['Ctrl', 'Enter'],
-//           ['Shift', 'Enter'],
-//         ]}
-//       />
-//       <Action title='Send' keyBindings={[['Enter']]} />
-//       <div className='explainer'>
-//         Change it in the <a href='#'>settings</a>.
-//       </div>
-//     </div>
-//   )
-// }
-
 export function enterKeySendsKeyboardShortcuts(
   enterKeySends: boolean
 ): ShortcutAction[] {
@@ -212,38 +176,27 @@ export function getKeybindings(
   const tx = window.static_translate
 
   return [
-    // Title(tx('desktop_keybindings_global')),
+    ...enterKeySendsKeyboardShortcuts(settings['enterKeySends']).map(Shortcut),
     ...[
-      {
-        title: tx('switch_between_chats'),
-        keyBindings: [
-          ['Alt', 'ArrowUp'],
-          ['Alt', 'ArrowDown'],
-          ['Control', 'PageUp'],
-          ['Control', 'PageDown'],
-          ['Control', 'Tab'],
-          ['Control', 'Shift', 'Tab'],
-        ],
-      },
       {
         title: tx('scroll_messages'),
         keyBindings: [['PageUp'], ['PageDown']],
       },
       {
         title: tx('focus_search_input'),
-        keyBindings: [['Control', 'K']],
+        keyBindings: [[isMac ? 'Meta' : 'Control', 'F']],
+      },
+      {
+        title: tx('search_in_chat'),
+        keyBindings: [[isMac ? 'Meta' : 'Control', 'Shift', 'F']],
+      },
+      {
+        title: tx('menu_new_chat'),
+        keyBindings: [[isMac ? 'Meta' : 'Control', 'N']],
       },
       {
         title: tx('focus_message_input'),
-        keyBindings: [['Control', 'N']],
-      },
-      {
-        title: tx('menu_reply'),
-        keyBindings: [
-          ['Control', 'ArrowUp'],
-          ['Control', 'ArrowDown'],
-          ['Esc'],
-        ],
+        keyBindings: [['Control', 'M']],
       },
       {
         title: tx('menu_help'),
@@ -257,8 +210,25 @@ export function getKeybindings(
         title: tx('force_refresh_network'),
         keyBindings: [['F5']],
       },
+      {
+        title: tx('switch_between_chats'),
+        keyBindings: [
+          ['Alt', 'ArrowUp'],
+          ['Alt', 'ArrowDown'],
+          ['Control', 'PageUp'],
+          ['Control', 'PageDown'],
+          ['Control', 'Tab'],
+          ['Control', 'Shift', 'Tab'],
+        ],
+      },
+      {
+        title: tx('menu_reply'),
+        keyBindings: [
+          ['Control', 'ArrowUp'],
+          ['Control', 'ArrowDown'],
+          ['Esc'],
+        ],
+      },
     ].map(Shortcut),
-    // Title(tx('desktop_keybindings_composer')),
-    ...enterKeySendsKeyboardShortcuts(settings['enterKeySends']).map(Shortcut),
   ]
 }

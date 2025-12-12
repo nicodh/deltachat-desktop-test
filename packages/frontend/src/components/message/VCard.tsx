@@ -8,13 +8,21 @@ import { createChatByContactId } from '../../backend/chat'
 import useChat from '../../hooks/chat/useChat'
 import useTranslationFunction from '../../hooks/useTranslationFunction'
 import useConfirmationDialog from '../../hooks/dialog/useConfirmationDialog'
+import { CssWithAvatarColor } from '../Avatar'
+import { avatarInitial } from '@deltachat-desktop/shared/avatarInitial'
 
 /**
  * displays a VCard attachement with avatar, mail & name
  * onClick imports VCard and creates chat
  * (only first if multiple contacts are included in VCard)
  */
-export default function VCardComponent({ message }: { message: T.Message }) {
+export default function VCardComponent({
+  message,
+  tabindexForInteractiveContents,
+}: {
+  message: T.Message
+  tabindexForInteractiveContents: -1 | 0
+}) {
   const { selectChat } = useChat()
   const accountId = selectedAccountId()
   const openConfirmationDialog = useConfirmationDialog()
@@ -44,6 +52,7 @@ export default function VCardComponent({ message }: { message: T.Message }) {
   return (
     <VisualVCardComponent
       onClick={() => startChatWithContact(addr)}
+      tabindexForInteractiveContents={tabindexForInteractiveContents}
       vcardContact={message.vcardContact}
     />
   )
@@ -52,19 +61,22 @@ export default function VCardComponent({ message }: { message: T.Message }) {
 export function VisualVCardComponent({
   vcardContact,
   onClick,
+  tabindexForInteractiveContents,
 }: {
   vcardContact: NonNullable<T.Message['vcardContact']>
   onClick?: () => void
+  tabindexForInteractiveContents?: -1 | 0
 }) {
   const { profileImage, color, displayName, addr } = vcardContact
-  const codepoint = displayName && displayName.codePointAt(0)
-  const initial = codepoint
-    ? String.fromCodePoint(codepoint).toUpperCase()
-    : '#'
+  const initial = avatarInitial(displayName, addr)
 
   const Tag = onClick ? 'button' : 'div'
   return (
-    <Tag onClick={onClick} className={styles.vcard}>
+    <Tag
+      onClick={onClick}
+      tabIndex={tabindexForInteractiveContents}
+      className={styles.vcard}
+    >
       <div
         className={classNames('avatar', styles.avatar)}
         aria-label={displayName}
@@ -76,14 +88,16 @@ export function VisualVCardComponent({
             src={'data:image/jpeg;base64,' + profileImage}
           />
         ) : (
-          <div style={{ backgroundColor: color }} className='content'>
+          <div
+            className='content'
+            style={{ '--local-avatar-color': color } as CssWithAvatarColor}
+          >
             {initial}
           </div>
         )}
       </div>
       <div className={styles.contactInfo}>
         <div className={styles.displayName}>{displayName}</div>
-        <div>{addr}</div>
       </div>
     </Tag>
   )

@@ -1,37 +1,50 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ActionEmitter, KeybindAction } from '../keybindings'
-import useKeyBindingAction from '../hooks/useKeyBindingAction'
 import { markChatAsSeen, saveLastChatId } from '../backend/chat'
 import { BackendRemote } from '../backend-com'
 
-import type { MutableRefObject, PropsWithChildren } from 'react'
+import type { RefObject, PropsWithChildren } from 'react'
 import type { T } from '@deltachat/jsonrpc-client'
+import { useRpcFetch } from '../hooks/useFetch'
+import { getLogger } from '@deltachat-desktop/shared/logger'
 
-export type AlternativeView = 'global-gallery' | null
-
-export enum ChatView {
-  Map,
-  Media,
-  MessageList,
-}
-
-export type SetView = (nextView: ChatView) => void
+const log = getLogger('ChatContext')
 
 export type SelectChat = (
   nextAccountId: number,
   chatId: number
-) => Promise<void>
+) => Promise<boolean>
 
 export type UnselectChat = () => void
 
 export type ChatContextValue = {
-  activeView: ChatView
-  chat?: T.FullChat
+  /**
+   * `withLinger` means that after `selectChat()` the value of `chatWithLinger`
+   * does not change immediately (unlike `chatId`),
+   * until the new chat's info gets loaded.
+   */
+  chatWithLinger?: T.FullChat
+  chatNoLinger?: T.FullChat
+  loadingChat: boolean
   chatId?: number
-  alternativeView: AlternativeView
+  // The resolve value of the promise is unused at the time of writing.
+  // And the Promise itself doesn't seem to be used that much.
+  // Maybe we can make it just return `void`, or need to reconsider
+  // the correctness of the code that uses it.
+  /**
+   * Changes the active chat.
+   * Returns a Promise that resolves with `true`
+   * when we're done loading the chat
+   * and setting the state (`chatWithLinger`) accordingly.
+   *
+   * If this function gets called another time before the Promise
+   * from the previous call resolves,
+   * the previous call's Promise will immediately resolve to `false`.
+   *
+   * @throws if `nextAccountId` is not the currently selected account.
+   */
   selectChat: SelectChat
-  setChatView: SetView
   unselectChat: UnselectChat
 }
 
@@ -41,7 +54,7 @@ type Props = {
    * the ref gives us a handle to reset the component without moving it up in the hierarchy.
    * a class component would give us the option to call methods on the component,
    * but we are using a functional component here so we need to pass this as a property instead*/
-  unselectChatRef: MutableRefObject<UnselectChat | null>
+  unselectChatRef: RefObject<UnselectChat | null>
 }
 
 export const ChatContext = React.createContext<ChatContextValue | null>(null)
@@ -51,17 +64,44 @@ export const ChatProvider = ({
   accountId,
   unselectChatRef,
 }: PropsWithChildren<Props>) => {
-  const [activeView, setActiveView] = useState(ChatView.MessageList)
-  const [chat, setChat] = useState<T.FullChat | undefined>()
   const [chatId, setChatId] = useState<number | undefined>()
-  const [alternativeView, setAlternativeView] = useState<AlternativeView>(null)
+  useEffect(() => {
+    window.__selectedChatId = chatId
+  }, [chatId])
 
-  const setChatView = useCallback<SetView>((nextView: ChatView) => {
-    setActiveView(nextView)
-  }, [])
+  const chatFetch = useRpcFetch(
+    BackendRemote.rpc.getFullChatById,
+    accountId != undefined && chatId != undefined ? [accountId, chatId] : null
+  )
+  if (chatFetch?.result?.ok === false) {
+    log.error('Failed to fetch chat', chatFetch.result.err)
+  }
+  const chatWithLinger = chatFetch?.lingeringResult?.ok
+    ? chatFetch.lingeringResult.value
+    : undefined
+  const chatNoLinger = chatFetch?.result?.ok
+    ? chatFetch.result.value
+    : undefined
+
+  type ChatOrNull = null | Awaited<
+    ReturnType<typeof BackendRemote.rpc.getFullChatById>
+  >
+  const resolvePendingSetChatPromise = useRef<
+    ((res: ChatOrNull) => void) | null
+  >(null)
+  if (
+    resolvePendingSetChatPromise.current &&
+    chatNoLinger != undefined &&
+    // This is implied by `chatNoLinger != undefined`, but let's double-check.
+    chatNoLinger.id === chatId
+  ) {
+    resolvePendingSetChatPromise.current(chatNoLinger)
+    resolvePendingSetChatPromise.current = null
+    // Maybe a callback passed to `useRpcFetch` would be simpler.
+  }
 
   const selectChat = useCallback<SelectChat>(
-    async (nextAccountId: number, nextChatId: number) => {
+    (nextAccountId: number, nextChatId: number) => {
       if (!accountId) {
         throw new Error('can not select chat when no `accountId` is given')
       }
@@ -73,20 +113,27 @@ export const ChatProvider = ({
       }
 
       // Jump to last message if user clicked chat twice
+      // Remember that there might be no messages in the chat.
       // @TODO: We probably want this to be part of the UI logic instead
       if (nextChatId === chatId) {
-        window.__internal_jump_to_message?.({
-          msgId: undefined,
-          highlight: false,
-          addMessageIdToStack: undefined,
-          // `scrollIntoViewArg:` doesn't really have effect when
-          // jumping to the last message.
-        })
+        window.__internal_jump_to_message_asap = {
+          accountId,
+          chatId: nextChatId,
+          jumpToMessageArgs: [
+            {
+              msgId: undefined,
+              highlight: false,
+              focus: false,
+              addMessageIdToStack: undefined,
+              // `scrollIntoViewArg:` doesn't really have effect when
+              // jumping to the last message.
+            },
+          ],
+        }
+        window.__internal_check_jump_to_message?.()
       }
 
       // Already set known state
-      setAlternativeView(null)
-      setActiveView(ChatView.MessageList)
       setChatId(nextChatId)
 
       // Clear system notifications and mark chat as seen in backend
@@ -95,46 +142,36 @@ export const ChatProvider = ({
       // Remember that user selected this chat to open it again when they come back
       saveLastChatId(accountId, nextChatId)
 
-      // Load all chat data we need to get started
-      const nextChat = await BackendRemote.rpc.getFullChatById(
-        accountId,
-        nextChatId
-      )
-      setChat(nextChat)
+      resolvePendingSetChatPromise.current?.(null)
+      const setChatPromise = new Promise<ChatOrNull>(r => {
+        resolvePendingSetChatPromise.current = r
+      })
 
-      // Switch to "archived" view if selected chat is there
-      // @TODO: We probably want this to be part of the UI logic instead
-      ActionEmitter.emitAction(
-        nextChat.archived
-          ? KeybindAction.ChatList_SwitchToArchiveView
-          : KeybindAction.ChatList_SwitchToNormalView
-      )
+      setChatPromise.then(nextChat => {
+        if (nextChat == null) {
+          return
+        }
+        // Switch to "archived" view if selected chat is there
+        // @TODO: We probably want this to be part of the UI logic instead
+        ActionEmitter.emitAction(
+          nextChat.archived
+            ? KeybindAction.ChatList_SwitchToArchiveView
+            : KeybindAction.ChatList_SwitchToNormalView
+        )
+      })
+
+      return setChatPromise.then(nextChat => nextChat != null)
     },
     [accountId, chatId]
   )
 
-  const refreshChat = useCallback(async () => {
-    if (!accountId || !chatId) {
-      return
-    }
-
-    setChat(await BackendRemote.rpc.getFullChatById(accountId, chatId))
-  }, [accountId, chatId])
-
   const unselectChat = useCallback<UnselectChat>(() => {
-    setAlternativeView(null)
-    setActiveView(ChatView.MessageList)
     setChatId(undefined)
-    setChat(undefined)
   }, [])
 
   unselectChatRef.current = unselectChat
 
-  useKeyBindingAction(KeybindAction.GlobalGallery_Open, () => {
-    unselectChat()
-    setAlternativeView('global-gallery')
-  })
-
+  const refreshChat = chatFetch?.refresh
   // Subscribe to events coming from the core
   useEffect(() => {
     const onChatModified = (
@@ -149,7 +186,11 @@ export const ChatProvider = ({
         return
       }
 
-      refreshChat()
+      if (refreshChat) {
+        refreshChat()
+      } else {
+        log.error("tried to refreshChat, but it's", refreshChat)
+      }
     }
 
     const onContactsModified = (
@@ -160,7 +201,7 @@ export const ChatProvider = ({
         return
       }
 
-      if (!chat) {
+      if (!chatWithLinger) {
         return
       }
 
@@ -168,11 +209,15 @@ export const ChatProvider = ({
         return
       }
 
-      if (!chat.contactIds.includes(contactId)) {
+      if (!chatWithLinger.contactIds.includes(contactId)) {
         return
       }
 
-      refreshChat()
+      if (refreshChat) {
+        refreshChat()
+      } else {
+        log.error("tried to refreshChat, but it's", refreshChat)
+      }
     }
 
     BackendRemote.on('ChatModified', onChatModified)
@@ -184,15 +229,14 @@ export const ChatProvider = ({
       BackendRemote.off('ChatEphemeralTimerModified', onChatModified)
       BackendRemote.off('ContactsChanged', onContactsModified)
     }
-  }, [accountId, chat, chatId, refreshChat])
+  }, [accountId, chatWithLinger, chatId, refreshChat])
 
   const value: ChatContextValue = {
-    activeView,
-    chat,
+    chatWithLinger,
+    chatNoLinger,
+    loadingChat: chatFetch?.loading ?? false,
     chatId,
-    alternativeView,
     selectChat,
-    setChatView,
     unselectChat,
   }
 

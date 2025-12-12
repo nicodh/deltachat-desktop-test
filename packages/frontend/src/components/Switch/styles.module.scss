@@ -1,6 +1,6 @@
 .switchWrapper {
   position: relative;
-  margin-left: 10px;
+  margin-inline-start: 10px;
 
   & input {
     // Hide it, but keep in DOM purely for accessibility reasons
@@ -56,4 +56,8 @@
     box-shadow: var(--bp4SwitchKnobShadowChecked);
     background: var(--bp4SwitchKnobChecked);
   }
+}
+
+.disabled {
+  opacity: 0.4;
 }

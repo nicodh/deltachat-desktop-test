@@ -1,3 +1,7 @@
+@use 'sass:map';
+@use '../mixins';
+@use '../variables';
+
 /* Chat List (conversation list) */
 
 .chat-list-item,
@@ -12,6 +16,7 @@
   flex-direction: row;
   padding: 0px 10px;
   align-items: center;
+  outline-offset: -1px;
 
   .status-icon {
     flex-shrink: 0;
@@ -28,7 +33,7 @@
     margin-top: 1px;
 
     font-size: 9pt;
-    margin-left: 5px;
+    margin-inline-start: 5px;
     height: 20px;
     padding: 0 5pt;
     line-height: 20px;
@@ -41,8 +46,9 @@
     // the parent if the content is too long.
     width: 0;
     flex-grow: 1;
-
-    margin-left: 10px;
+    margin-inline-start: 10px;
+    // parent - 48px (for avatar) - 10px (our right padding)
+    max-width: calc(100% - 58px);
 
     display: flex;
     flex-direction: column;
@@ -82,14 +88,13 @@
 
       & > div > .timestamp {
         flex-shrink: 0;
-        margin-left: 6px;
+        margin-inline-start: 6px;
         font-size: 11px;
         line-height: 16px;
         letter-spacing: 0.3px;
         overflow-x: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
-        text-transform: uppercase;
         user-select: none;
       }
     }
@@ -134,8 +139,8 @@
         }
 
         & > .summary {
-          float: left;
-          margin-right: 2px;
+          float: inline-start;
+          margin-inline-end: 2px;
           &.draft {
             color: var(--draftTextColor);
           }
@@ -148,7 +153,7 @@
       border-radius: 2px;
       font-size: 11px;
       padding: 1px 4px;
-      margin-left: 2px;
+      margin-inline-start: 2px;
     }
   }
 
@@ -216,7 +221,8 @@
 
 .chat-list-item.skeleton {
   background-repeat: no-repeat;
-  background-image: radial-gradient(circle 24px, grey 99%, transparent 0),
+  background-image:
+    radial-gradient(circle 24px, grey 99%, transparent 0),
     linear-gradient(grey 40px, transparent 0),
     linear-gradient(grey 40px, transparent 0),
     linear-gradient(grey 40px, transparent 0);
@@ -256,10 +262,10 @@
   }
   .pin_icon {
     flex-shrink: 0;
-    @include color-svg('./images/pin.svg', var(--globalText));
+    @include mixins.color-svg('./images/pin.svg', var(--globalText));
     width: 16px;
     height: 16px;
-    margin-left: 6px;
+    margin-inline-start: 6px;
   }
 }
 
@@ -269,7 +275,7 @@
   }
   .mute_icon {
     flex-shrink: 0;
-    @include color-svg('./images/mute.png', var(--globalText));
+    @include mixins.color-svg('./images/mute.png', var(--globalText));
     width: 16px;
     height: 16px;
   }
@@ -335,7 +341,7 @@
   --size: 50px;
   --iconSize: 20px;
   position: fixed;
-  z-index: map-get($z-index, chatlist-scope-floating-action-button);
+  z-index: map.get(variables.$z-index, chatlist-scope-floating-action-button);
   bottom: 15px;
 
   width: var(--size);
@@ -343,7 +349,7 @@
   padding: calc((var(--size) - var(--iconSize)) / 2);
 
   border: none;
-  background-color: var(--floatingActionButtonBg);
+  background-color: var(--newChatButtonBg);
   border-radius: 100%;
 
   .Icon {
@@ -354,6 +360,10 @@
 }
 
 #new-chat-button {
-  right: 15px;
+  inset-inline-end: 15px;
   position: absolute;
+  &:focus-visible {
+    outline-offset: 2px;
+    scale: 1.1;
+  }
 }

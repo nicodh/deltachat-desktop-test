@@ -14,7 +14,7 @@ import Advanced from './Advanced'
 import Profile from './Profile'
 import Dialog, { DialogBody, DialogHeader } from '../Dialog'
 import EditProfileDialog from '../dialogs/EditProfileDialog'
-import SettingsSeparator from './SettingsSeparator'
+import SettingsSeparator, { SettingsEndSeparator } from './SettingsSeparator'
 import useDialog from '../../hooks/dialog/useDialog'
 import useTranslationFunction from '../../hooks/useTranslationFunction'
 
@@ -28,11 +28,33 @@ type SettingsView =
   | 'advanced'
 
 export default function Settings({ onClose }: DialogProps) {
-  const { openDialog } = useDialog()
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  const settingsStore = useSettingsStore()[0]!
+  const { openDialog, closeDialog, openDialogIds } = useDialog()
+
+  const settingsStore = useSettingsStore()[0]
   const tx = useTranslationFunction()
   const [settingsMode, setSettingsMode] = useState<SettingsView>('main')
+
+  useEffect(() => {
+    const handler = (evt: KeyboardEvent) => {
+      if (
+        settingsMode !== 'main' &&
+        window.__settingsOpened &&
+        evt.key === 'Escape'
+      ) {
+        evt.preventDefault()
+        if (openDialogIds.length > 1) {
+          // if there is an open dialog on top of settings dialog
+          // (like Backup or Password & Account dialog) close that
+          closeDialog(openDialogIds[openDialogIds.length - 1].toString())
+        } else {
+          // switch back to main Settings dialog
+          setSettingsMode('main')
+        }
+      }
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [settingsMode, openDialogIds, closeDialog])
 
   useEffect(() => {
     if (window.__settingsOpened) {
@@ -47,26 +69,28 @@ export default function Settings({ onClose }: DialogProps) {
   }, [])
 
   return (
-    <Dialog onClose={onClose} fixed width={400} data-testid='settings-dialog'>
+    <Dialog onClose={onClose} fixed width={400} dataTestid='settings-dialog'>
       {settingsMode === 'main' && (
         <>
           <DialogHeader
             title={tx('menu_settings')}
             onClose={onClose}
-            data-testid='close-settings'
+            dataTestid='settings'
           />
           <DialogBody>
-            <Profile settingsStore={settingsStore} />
-            <SettingsIconButton
-              icon='person'
-              onClick={() => {
-                openDialog(EditProfileDialog, {
-                  settingsStore,
-                })
-              }}
-            >
-              {tx('pref_edit_profile')}
-            </SettingsIconButton>
+            {settingsStore != null && (
+              <Profile
+                settingsStore={settingsStore}
+                onStatusClick={() => {
+                  if (settingsStore == null) {
+                    return
+                  }
+                  openDialog(EditProfileDialog, {
+                    settingsStore,
+                  })
+                }}
+              />
+            )}
             <SettingsSeparator />
             <SettingsIconButton
               icon='forum'
@@ -99,6 +123,7 @@ export default function Settings({ onClose }: DialogProps) {
             <SettingsIconButton
               icon='code-tags'
               onClick={() => setSettingsMode('advanced')}
+              dataTestid='open-advanced-settings'
             >
               {tx('menu_advanced')}
             </SettingsIconButton>
@@ -121,6 +146,7 @@ export default function Settings({ onClose }: DialogProps) {
             <SettingsIconButton icon='info' onClick={() => openDialog(About)}>
               {tx('global_menu_help_about_desktop')}
             </SettingsIconButton>
+            <SettingsEndSeparator />
           </DialogBody>
         </>
       )}
@@ -132,10 +158,10 @@ export default function Settings({ onClose }: DialogProps) {
             onClose={onClose}
           />
           <DialogBody>
-            <ChatsAndMedia
-              settingsStore={settingsStore}
-              desktopSettings={settingsStore.desktopSettings}
-            />
+            {settingsStore != null && (
+              <ChatsAndMedia settingsStore={settingsStore} />
+            )}
+            <SettingsEndSeparator />
           </DialogBody>
         </>
       )}
@@ -147,7 +173,10 @@ export default function Settings({ onClose }: DialogProps) {
             onClose={onClose}
           />
           <DialogBody>
-            <Notifications desktopSettings={settingsStore.desktopSettings} />
+            {settingsStore != null && (
+              <Notifications desktopSettings={settingsStore.desktopSettings} />
+            )}
+            <SettingsEndSeparator />
           </DialogBody>
         </>
       )}
@@ -159,11 +188,14 @@ export default function Settings({ onClose }: DialogProps) {
             onClose={onClose}
           />
           <DialogBody>
-            <Appearance
-              rc={settingsStore.rc}
-              desktopSettings={settingsStore.desktopSettings}
-              settingsStore={settingsStore}
-            />
+            {settingsStore != null && (
+              <Appearance
+                rc={settingsStore.rc}
+                desktopSettings={settingsStore.desktopSettings}
+                settingsStore={settingsStore}
+              />
+            )}
+            <SettingsEndSeparator />
           </DialogBody>
         </>
       )}
@@ -173,9 +205,13 @@ export default function Settings({ onClose }: DialogProps) {
             title={tx('menu_advanced')}
             onClickBack={() => setSettingsMode('main')}
             onClose={onClose}
+            dataTestid='settings-advanced'
           />
           <DialogBody>
-            <Advanced settingsStore={settingsStore} />
+            {settingsStore != null && (
+              <Advanced settingsStore={settingsStore} />
+            )}
+            <SettingsEndSeparator />
           </DialogBody>
         </>
       )}

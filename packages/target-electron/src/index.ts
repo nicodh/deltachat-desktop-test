@@ -1,30 +1,28 @@
+// eslint-disable-next-line no-console
 console.time('init')
 
 import { mkdirSync, Stats, watchFile } from 'fs'
 import { app as rawApp, dialog, ipcMain, protocol } from 'electron'
 import rc from './rc.js'
 import contextMenu from './electron-context-menu.js'
-import { isWindowsStorePackage } from './isAppx.js'
+import { initIsWindowsStorePackageVar } from './isAppx.js'
 import { getHelpMenu } from './help_menu.js'
 import { initialisePowerMonitor } from './resume_from_sleep.js'
 
-import type { EventEmitter } from 'events'
-
-// Hardening: prohibit all DNS queries, except for  OpenStreetMap
-// (used by /static/xdcs/maps.xdc)
+// Hardening: prohibit all DNS queries
 // The `~NOTFOUND` string is here:
 // https://chromium.googlesource.com/chromium/src/+/6459548ee396bbe1104978b01e19fcb1bb68d0e5/net/dns/mapped_host_resolver.cc#46
 // Chromium docs that touch on `--host-resolver-rules` and DNS:
 // https://www.chromium.org/developers/design-documents/network-stack/socks-proxy/
 // https://www.chromium.org/developers/design-documents/dns-prefetching/
-const hostRules = 'MAP * ~NOTFOUND, EXCLUDE *.openstreetmap.org'
+const hostRules = 'MAP * ~NOTFOUND'
 rawApp.commandLine.appendSwitch('host-resolver-rules', hostRules)
 rawApp.commandLine.appendSwitch('host-rules', hostRules)
 
 rawApp.commandLine.appendSwitch('disable-features', 'IsolateSandboxedIframes')
 
 if (rc['version'] === true || rc['v'] === true) {
-  /* ignore-console-log */
+  // eslint-disable-next-line no-console
   console.info(BuildInfo.VERSION)
   process.exit()
 }
@@ -34,6 +32,7 @@ if (rc['help'] === true || rc['h'] === true) {
   process.exit()
 }
 
+import { callsWebappElectronScheme } from './windows/video-call.js'
 protocol.registerSchemesAsPrivileged([
   {
     scheme: 'webxdc',
@@ -66,6 +65,7 @@ protocol.registerSchemesAsPrivileged([
       stream: true, // needed for audio playback
     },
   },
+  callsWebappElectronScheme,
 ])
 
 const app = rawApp as ExtendedAppMainProcess
@@ -79,7 +79,7 @@ if (
   !app.requestSingleInstanceLock() &&
   !process.env.DC_TEST_DIR
 ) {
-  /* ignore-console-log */
+  // eslint-disable-next-line no-console
   console.error('Only one instance allowed. Quitting.')
   app.quit()
   process.exit(0)
@@ -113,7 +113,7 @@ process.on('uncaughtException', err => {
   if (log) {
     log.error('uncaughtError', error)
   } else {
-    /* ignore-console-log */
+    // eslint-disable-next-line no-console
     console.error('uncaughtException', error)
   }
   dialog.showErrorBox(
@@ -132,8 +132,14 @@ import { ExtendedAppMainProcess } from './types.js'
 import { updateTrayIcon, hideDeltaChat, showDeltaChat } from './tray.js'
 import './notifications.js'
 import { acceptThemeCLI } from './themes.js'
-import { webxdcStartUpCleanup } from './deltachat/webxdc.js'
-import { cleanupDraftTempDir } from './cleanup_temp_dir.js'
+import {
+  WEBXDC_PARTITION_PREFIX,
+  webxdcStartUpCleanup,
+} from './deltachat/webxdc.js'
+import {
+  cleanupDraftTempDir,
+  cleanupInternalTempDirs,
+} from './cleanup_temp_dir.js'
 
 app.ipcReady = false
 app.isQuitting = false
@@ -141,7 +147,7 @@ app.isQuitting = false
 Promise.all([
   new Promise((resolve, _reject) => app.on('ready', resolve)),
   DesktopSettings.load(),
-  isWindowsStorePackage(),
+  initIsWindowsStorePackageVar(),
   webxdcStartUpCleanup(),
 ])
   .then(onReady)
@@ -149,7 +155,7 @@ Promise.all([
     log.critical('Fatal Error during init', error)
     dialog.showErrorBox(
       'Fatal Error during init',
-      `[DC Version: ${BuildInfo.VERSION} | ${platform()} | ${arch()}]]
+      `[Version: ${BuildInfo.VERSION} | ${platform()} | ${arch()}]]
 ${error}
 
 Also make sure you are not trying to run multiple instances of deltachat.`
@@ -167,8 +173,7 @@ async function onReady([_appReady, _loadedState, _appx, _webxdc_cleanup]: [
 ]) {
   // can fail due to user error so running it first is better (cli argument)
   acceptThemeCLI()
-
-  setLanguage(DesktopSettings.state.locale || app.getLocale())
+  setLanguage(DesktopSettings.state.locale || app.getLocale().split('-')[0]) // can consist of 2 strings like in en-GB
 
   const cwd = getAccountsPath()
   log.info(`cwd ${cwd}`)
@@ -198,15 +203,16 @@ async function onReady([_appReady, _loadedState, _appx, _webxdc_cleanup]: [
     log.error('Cleanup of old logfiles failed: ', err)
   )
   cleanupDraftTempDir()
-
+  cleanupInternalTempDirs()
   // NOTE: Make sure to use `powerMonitor` only when electron signals it is ready
   initialisePowerMonitor()
 }
 
-;(app as EventEmitter).once('ipcReady', () => {
+app.once('ipcReady' as any, () => {
   if (!mainWindow.window) {
     throw new Error('window does not exist, this should never happen')
   }
+  // eslint-disable-next-line no-console
   console.timeEnd('init')
   if (process.env.NODE_ENV === 'test') {
     mainWindow.window.maximize()
@@ -284,12 +290,14 @@ app.on('activate', () => {
   }
 })
 app.on('before-quit', e => quit(e))
-app.on('window-all-closed', (e: Electron.Event) => quit(e))
+app.on('window-all-closed', () => quit())
 
 app.on('web-contents-created', (_ev, contents) => {
   const is_webxdc =
     contents.session.storagePath &&
-    contents.session.storagePath.indexOf('webxdc_') !== -1
+    contents.session.storagePath.indexOf(
+      WEBXDC_PARTITION_PREFIX satisfies 'webxdc_'
+    ) !== -1
   if (is_webxdc) {
     const webxdcOpenUrl = (url: string) => {
       if (url.startsWith('mailto:') || url.startsWith('openpgp4fpr:')) {

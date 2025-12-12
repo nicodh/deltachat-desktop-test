@@ -2,7 +2,7 @@ import React, { useRef, useCallback } from 'react'
 
 import { DialogBody, DialogFooter, FooterActions } from '../../Dialog'
 import FooterActionButton from '../../Dialog/FooterActionButton'
-import QrReader from '../../QrReader'
+import { QrReader } from '../../QrReader'
 import useProcessQr from '../../../hooks/useProcessQr'
 import { selectedAccountId } from '../../../ScreenController'
 import { DialogWithHeader } from '../../Dialog'
@@ -14,6 +14,7 @@ import styles from './styles.module.scss'
 import type { DialogProps } from '../../../contexts/DialogContext'
 import useAlertDialog from '../../../hooks/dialog/useAlertDialog'
 import { runtime } from '@deltachat-desktop/runtime-interface'
+import { SCAN_CONTEXT_TYPE } from '../../../hooks/useProcessQr'
 
 const log = getLogger('renderer/dialogs/SetupMultiDevice/ReceiveBackup')
 
@@ -49,7 +50,12 @@ export function ReceiveBackupDialog({ onClose }: Props & DialogProps) {
       if (data && !processingQrCode.current) {
         processingQrCode.current = true
         try {
-          await processQr(accountId, data, onDone)
+          await processQr(
+            accountId,
+            data,
+            SCAN_CONTEXT_TYPE.TRANSFER_BACKUP,
+            onDone
+          )
         } catch (error: any) {
           log.errorWithoutStackTrace('QrReader process error: ', error)
           handleError(error)
@@ -70,8 +76,6 @@ export function ReceiveBackupDialog({ onClose }: Props & DialogProps) {
       <DialogBody>
         <p className={styles.receiveSteps}>
           {tx('multidevice_open_settings_on_other_device')}
-          <br />
-          {tx('multidevice_experimental_hint')}
         </p>
         <QrReader onScanSuccess={handleScan} onError={handleError} />
       </DialogBody>
@@ -81,9 +85,6 @@ export function ReceiveBackupDialog({ onClose }: Props & DialogProps) {
             onClick={() => runtime.openHelpWindow('multiclient')}
           >
             {tx('troubleshooting')}
-          </FooterActionButton>
-          <FooterActionButton onClick={onClose}>
-            {tx('close')}
           </FooterActionButton>
         </FooterActions>
       </DialogFooter>

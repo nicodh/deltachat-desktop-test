@@ -28,11 +28,18 @@
       .quote {
         // this is just overwrites for the quote styles defined in _message.scss
         margin: 4px;
+        .quoted-text {
+          // Set fixed height to reduce layout shifts
+          // when changing the quote rapidly, e.g. with the Ctrl + Up shortcut.
+          // See https://github.com/deltachat/deltachat-desktop/issues/4314.
+          height: 24px;
+        }
       }
 
       // The "remove attachment / quote" buttons.
       button:not(.quote-background) {
-        margin-left: auto;
+        margin-inline-start: auto;
+        justify-content: flex-end;
       }
 
       .message-attachment-media {
@@ -40,7 +47,8 @@
         margin: 4px;
         border-radius: 0px;
         cursor: unset;
-        img {
+        img,
+        video {
           cursor: unset;
           max-height: 200px;
         }
@@ -55,19 +63,27 @@
     display: flex;
     align-items: flex-end;
     background-color: var(--composerBg);
+    padding: 2px 0;
 
     .attachment-button,
-    .emoji-button {
+    .emoji-button,
+    .microphone-button {
       background: none;
       border: none;
+
+      // So that the composer doesn't make them shrink as you type text.
+      flex-shrink: 0;
     }
 
     .attachment-button {
       width: 40px;
       height: 40px;
+      padding-top: 4px;
+      padding-inline-start: 8px;
 
       box-shadow: none;
       border: none;
+      outline-offset: -1px;
 
       &:hover {
         background: none;
@@ -80,6 +96,7 @@
     .emoji-button {
       height: 40px;
       padding: 0px 3px;
+      margin-inline-end: 5px;
       &:focus:not(:focus-visible) {
         outline: none;
       }
@@ -93,21 +110,24 @@
       }
     }
 
-    .send-button-wrapper {
+    .send-button {
       width: 32px;
       height: 32px;
-      margin-top: 4px;
-      margin-bottom: 4px;
-      margin-right: 5px;
+      padding: 0;
+      margin: 4px 5px 4px 3px;
       background-color: var(--composerSendButton);
+      border: none;
       border-radius: 180px;
       cursor: pointer;
 
       &:focus:not(:focus-visible) {
         outline: none;
       }
+      &:focus-visible {
+        outline-offset: 2px;
+      }
 
-      button {
+      .paper-plane {
         height: 24px;
         width: 24px;
         margin: 4px;
@@ -117,10 +137,10 @@
         background-repeat: no-repeat;
         background-position: 3px 1px;
         background-size: contain;
-        vertical-align: middle;
 
-        &:focus:not(:focus-visible) {
-          outline: none;
+        vertical-align: middle;
+        &:dir(rtl) {
+          transform: rotate(180deg);
         }
       }
     }
@@ -131,12 +151,20 @@
       padding: 0px;
       border: 0;
       height: auto;
-      line-height: 24px;
+      $line-height: 24px;
+      line-height: $line-height;
       margin-top: 8px;
       margin-bottom: 8px;
       overflow-y: hidden;
       background-color: var(--composerBg);
       color: var(--composerText);
+
+      &.use-field-sizing-css-prop {
+        field-sizing: content;
+        max-height: calc(var(--maxLines) * $line-height);
+
+        overflow-y: auto;
+      }
 
       &::placeholder {
         color: var(--composerPlaceholderText);
@@ -150,6 +178,11 @@
 
       &.scroll {
         overflow-y: scroll;
+      }
+
+      // The "edit message" mode hides the .attachment-button.
+      &:first-child {
+        margin-inline-start: 1rem;
       }
     }
   }

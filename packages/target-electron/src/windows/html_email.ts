@@ -1,5 +1,4 @@
 import electron, {
-  BrowserView,
   BrowserWindow,
   dialog,
   Menu,
@@ -9,6 +8,7 @@ import electron, {
   session,
   shell,
   WebContents,
+  WebContentsView,
 } from 'electron'
 import { clipboard } from 'electron/common'
 import { join } from 'path'
@@ -20,7 +20,7 @@ import { isInviteLink, truncateText } from '@deltachat-desktop/shared/util.js'
 import { tx } from '../load-translations.js'
 import { open_url } from '../open_url.js'
 import { loadTheme } from '../themes.js'
-import { getDCJsonrpcClient } from '../ipc.js'
+import { getDCJsonrpcRemote } from '../ipc.js'
 import { getLogger } from '../../../shared/logger.js'
 
 import * as mainWindow from './main.js'
@@ -47,14 +47,15 @@ const open_windows: { [window_id: string]: BrowserWindow } = {}
  * @param htmlEmail
  */
 export function openHtmlEmailWindow(
-  window_id: string,
   account_id: number,
+  message_id: number,
   isContactRequest: boolean,
   subject: string,
   from: string,
   receiveTime: string,
   htmlEmail: string
 ) {
+  const window_id = `${account_id}.${message_id}`
   if (open_windows[window_id]) {
     // window already exists, focus it
     open_windows[window_id].focus()
@@ -66,6 +67,9 @@ export function openHtmlEmailWindow(
     x: undefined,
     y: undefined,
   }
+
+  const mainWindowZoomFactor =
+    mainWindow.window?.webContents.getZoomFactor() || 1.0
 
   const window = (open_windows[window_id] = new electron.BrowserWindow({
     backgroundColor: '#282828',
@@ -91,7 +95,7 @@ export function openHtmlEmailWindow(
     },
     alwaysOnTop: mainWindow?.isAlwaysOnTop(),
   }))
-  window.webContents.setZoomFactor(DesktopSettings.state.zoomFactor)
+  window.webContents.setZoomFactor(mainWindowZoomFactor)
 
   setContentProtection(window)
 
@@ -115,7 +119,7 @@ export function openHtmlEmailWindow(
   nativeTheme.on('updated', () => {
     try {
       window.webContents.ipc.emit('theme-update')
-    } catch (error) {
+    } catch (_error) {
       /* ignore error */
     }
   })
@@ -169,9 +173,21 @@ export function openHtmlEmailWindow(
       {
         label: tx('global_menu_view_desktop'),
         submenu: [
-          { role: 'resetZoom' },
-          { role: 'zoomIn' },
-          { role: 'zoomOut' },
+          {
+            accelerator: 'CmdOrCtrl+=',
+            label: tx('menu_zoom_in'),
+            role: 'zoomIn',
+          },
+          {
+            accelerator: 'CmdOrCtrl+-',
+            label: tx('menu_zoom_out'),
+            role: 'zoomOut',
+          },
+          {
+            accelerator: 'CmdOrCtrl+0',
+            label: `${tx('reset')}`,
+            role: 'resetZoom',
+          },
           { type: 'separator' },
           {
             label: tx('global_menu_view_floatontop_desktop'),
@@ -211,16 +227,20 @@ export function openHtmlEmailWindow(
     }
   })
 
-  let sandboxedView: BrowserView = makeBrowserView(
+  /**
+   * the actual content of the email is loaded into a sandboxed view
+   * with its own session and webPreferences that allows to load remote
+   * content, but only if the user allows it
+   */
+  let sandboxedView: WebContentsView = makeBrowserView(
     account_id,
     loadRemoteContentAtStart,
     htmlEmail,
     window
   )
-  window.setBrowserView(sandboxedView)
+  window.contentView.addChildView(sandboxedView)
   sandboxedView.webContents.setZoomFactor(
-    DesktopSettings.state.zoomFactor *
-      Math.pow(1.2, window.webContents.getZoomLevel())
+    mainWindowZoomFactor * Math.pow(1.2, window.webContents.getZoomLevel())
   )
   let context_menu_handle = createContextMenu(window, sandboxedView.webContents)
 
@@ -278,8 +298,7 @@ export function openHtmlEmailWindow(
     'html-view:resize-content',
     (_ev, bounds: Electron.Rectangle) => {
       const contentZoomFactor =
-        DesktopSettings.state.zoomFactor *
-        Math.pow(1.2, window.webContents.getZoomLevel())
+        mainWindowZoomFactor * Math.pow(1.2, window.webContents.getZoomLevel())
       const windowZoomFactor = window.webContents.getZoomFactor()
 
       const window_bounds = window.getBounds()
@@ -359,7 +378,7 @@ export function openHtmlEmailWindow(
     }
 
     const bounds = sandboxedView?.getBounds()
-    window.removeBrowserView(sandboxedView)
+    window.contentView.removeChildView(sandboxedView)
     context_menu_handle()
     sandboxedView.webContents.close()
     sandboxedView = makeBrowserView(
@@ -368,14 +387,14 @@ export function openHtmlEmailWindow(
       htmlEmail,
       window
     )
-    window.setBrowserView(sandboxedView)
+    window.contentView.addChildView(sandboxedView)
     context_menu_handle = createContextMenu(window, sandboxedView.webContents)
     if (bounds) sandboxedView.setBounds(bounds)
 
     // for debugging email
     // sandboxedView.webContents.openDevTools({ mode: 'detach' })
   }
-
+  // handle toggle network button
   window.webContents.ipc.handle('html-view:change-network', update_restrictions)
 
   window.loadFile(
@@ -440,7 +459,7 @@ function makeBrowserView(
   if (allow_remote_content) {
     const callback = async (req: Request) => {
       try {
-        const response = await getDCJsonrpcClient().getHttpResponse(
+        const response = await getDCJsonrpcRemote().rpc.getHttpResponse(
           account_id,
           req.url
         )
@@ -467,7 +486,7 @@ function makeBrowserView(
     ses.protocol.handle('https', callback)
   }
 
-  const sandboxedView = new BrowserView({
+  const sandboxedView = new WebContentsView({
     webPreferences: {
       accessibleTitle: 'email content',
       contextIsolation: true,
@@ -492,7 +511,10 @@ function makeBrowserView(
       open_url(url)
       mainWindow.window?.show()
     } else {
-      if (url.startsWith('http:') || url.startsWith('https:')) {
+      if (
+        url.toLowerCase().startsWith('http:') ||
+        url.toLowerCase().startsWith('https:')
+      ) {
         shell.openExternal(url)
       } else {
         dialog
@@ -516,6 +538,28 @@ function makeBrowserView(
       // before our drag-and-drop handlers have been initialized.
       // Also handle clicking links inside of the message.
       e.preventDefault()
+      const prefix = 'email://index.html'
+      if (url.startsWith(prefix)) {
+        let urlWithoutPrefix = url.slice(prefix.length)
+        if (url.slice(prefix.length)[0] == '/') {
+          urlWithoutPrefix = urlWithoutPrefix.slice(1)
+        }
+        if (urlWithoutPrefix.startsWith('#')) {
+          // double fragment issue workaround
+          // the issue is that when clicking on the same anchor multiple times,
+          // only the first time it jumps to it - the times after it just appends it to the url without jumping,
+          // might be an issue in electopn/chromium
+          // like this `email://index.html#anchor#anchor`
+          const lastFragment = urlWithoutPrefix.split('#').reverse()[0]
+          sandboxedView.webContents
+            .loadURL(`email://index.html/${Math.random()}/#${lastFragment}`)
+            .catch(log.error.bind(log, 'error'))
+          return
+        } else {
+          // assume it is a https weblink
+          return openLink('https://' + urlWithoutPrefix)
+        }
+      }
       openLink(url)
     }
   )

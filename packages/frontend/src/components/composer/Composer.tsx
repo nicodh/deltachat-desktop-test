@@ -6,8 +6,9 @@ import React, {
   useLayoutEffect,
   useCallback,
   useMemo,
+  useContext,
 } from 'react'
-import { C, T } from '@deltachat/jsonrpc-client'
+import { T } from '@deltachat/jsonrpc-client'
 import { extension } from 'mime-types'
 
 import MenuAttachment from './menuAttachment'
@@ -18,32 +19,34 @@ import { replaceColonsSafe } from '../conversations/emoji'
 import { Quote } from '../message/Message'
 import { DraftAttachment } from '../attachment/messageAttachment'
 import { useSettingsStore } from '../../stores/settings'
-import {
-  BackendRemote,
-  EffectfulBackendActions,
-  onDCEvent,
-  Type,
-} from '../../backend-com'
+import { BackendRemote, EffectfulBackendActions, Type } from '../../backend-com'
 import { selectedAccountId } from '../../ScreenController'
-import { MessageTypeAttachmentSubset } from '../attachment/Attachment'
 import { runtime } from '@deltachat-desktop/runtime-interface'
-import { confirmDialog } from '../message/messageFunctions'
-import { ProtectionBrokenDialog } from '../dialogs/ProtectionStatusDialog'
+import { confirmDialog, isMessageEditable } from '../message/messageFunctions'
 import useDialog from '../../hooks/dialog/useDialog'
 import useTranslationFunction from '../../hooks/useTranslationFunction'
 import useMessage from '../../hooks/chat/useMessage'
 import useChat from '../../hooks/chat/useChat'
+import { useDraft, type DraftObject } from '../../hooks/chat/useDraft'
 
 import type { EmojiData, BaseEmoji } from 'emoji-mart/index'
-import type { Viewtype } from '@deltachat/jsonrpc-client/dist/generated/types'
 import { VisualVCardComponent } from '../message/VCard'
 import { KeybindAction } from '../../keybindings'
 import useKeyBindingAction from '../../hooks/useKeyBindingAction'
 import { CloseButton } from '../Dialog'
 import { enterKeySendsKeyboardShortcuts } from '../KeyboardShortcutHint'
-import { AppPickerWrapper } from './AppPickerWrapper'
+import { AppPicker } from '../AppPicker'
 import { AppInfo, AppStoreUrl } from '../AppPicker'
 import OutsideClickHelper from '../OutsideClickHelper'
+import { useHasChanged2 } from '../../hooks/useHasChanged'
+import { ScreenContext } from '../../contexts/ScreenContext'
+import {
+  AudioErrorType,
+  AudioRecorder,
+  AudioRecorderError,
+} from '../AudioRecorder/AudioRecorder'
+import AlertDialog from '../dialogs/AlertDialog'
+import { unknownErrorToString } from '../helpers/unknownErrorToString'
 
 const log = getLogger('renderer/composer')
 
@@ -51,33 +54,46 @@ const Composer = forwardRef<
   any,
   {
     isContactRequest: boolean
-    isProtectionBroken: boolean
     selectedChat: Type.FullChat
-    messageInputRef: React.MutableRefObject<ComposerMessageInput | null>
+    regularMessageInputRef: React.RefObject<ComposerMessageInput | null>
+    editMessageInputRef: React.RefObject<ComposerMessageInput | null>
     draftState: DraftObject
+    draftIsLoading: ReturnType<typeof useDraft>['draftIsLoading']
+    onSelectReplyToShortcut: ReturnType<
+      typeof useDraft
+    >['onSelectReplyToShortcut']
     removeQuote: () => void
     updateDraftText: (text: string, InputChatId: number) => void
-    addFileToDraft: (file: string, viewType: T.Viewtype) => Promise<void>
+    addFileToDraft: (
+      file: string,
+      fileName: string,
+      viewType: T.Viewtype
+    ) => Promise<void>
     removeFile: () => void
-    clearDraft: () => void
+    clearDraftState: () => void
+    setDraftState: (newValue: DraftObject) => void
+    messageCache: { [msgId: number]: Type.MessageLoadResult | undefined }
   }
 >((props, ref) => {
   const {
     isContactRequest,
-    isProtectionBroken,
     selectedChat,
-    messageInputRef,
+    regularMessageInputRef,
+    editMessageInputRef,
     draftState,
+    draftIsLoading,
+    onSelectReplyToShortcut,
     removeQuote,
     updateDraftText,
     addFileToDraft,
     removeFile,
+    messageCache,
   } = props
 
   const chatId = selectedChat.id
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [showAppPicker, setShowAppPicker] = useState(false)
-  const [apps, setApps] = useState<AppInfo[]>([])
+  const [recording, setRecording] = useState(false)
 
   const emojiAndStickerRef = useRef<HTMLDivElement>(null)
   const pickerButtonRef = useRef<HTMLButtonElement>(null)
@@ -88,89 +104,214 @@ const Composer = forwardRef<
   const { sendMessage } = useMessage()
   const { unselectChat } = useChat()
 
-  const hasSecureJoinEnded = useRef<boolean>(false)
-  useEffect(() => {
-    if (hasSecureJoinEnded) {
-      // after can send was updated
-      window.__reloadDraft && window.__reloadDraft()
-      hasSecureJoinEnded.current = false
-    }
-  }, [selectedChat.canSend])
+  // The philosophy of the editing mode is as follows.
+  // The edit mode can be thought of as a dialog,
+  // even though it does not like one visually.
+  // The "edit message" dialog has a separate textarea,
+  // a separate "send" button, and a separate emoji picker.
+  // When the "edit" dialog opens, it does not modify the "normal" input,
+  // i.e. the normal draft state.
+  // It follows that when the "edit" dialog closes,
+  // the original draft state remains the same.
+  //
+  // From the development (coding) perspective,
+  // thinking of the "edit" mode as such (as a separate dialog)
+  // makes it easier to ensure that there are no weird collisions
+  // between the regular draft mode and the editing mode.
+  const messageEditing = useMessageEditing(
+    accountId,
+    chatId,
+    editMessageInputRef,
+    regularMessageInputRef
+  )
+  /**
+   * Use this only if you're sure that what you want to do with the ref
+   * applies to both the editing mode and to the regular mode.
+   */
+  const currentComposerMessageInputRef = messageEditing.isEditingModeActive
+    ? editMessageInputRef
+    : regularMessageInputRef
 
-  useEffect(() => {
-    return onDCEvent(accountId, 'SecurejoinJoinerProgress', ({ progress }) => {
-      // fix bug where composer was locked after joining a group via qr code
-      if (progress === 1000) {
-        // if already updated can send, currently this is not the case
-        window.__reloadDraft && window.__reloadDraft()
-        hasSecureJoinEnded.current = true
-      }
-    })
-  }, [accountId])
+  const onComposerMessageInputChange = useCallback(
+    (newText: string) => updateDraftText(newText, chatId),
+    [chatId, updateDraftText]
+  )
 
-  const composerSendMessage = async () => {
-    if (chatId === null) {
-      throw new Error('chat id is undefined')
-    }
-    if (!messageInputRef.current) {
-      throw new Error('messageInputRef is undefined')
-    }
-    const textareaRef = messageInputRef.current.textareaRef.current
-    if (textareaRef) {
-      if (textareaRef.disabled) {
-        throw new Error(
-          'text area is disabled, this means it is either already sending or loading the draft'
-        )
-      }
-      textareaRef.disabled = true
+  const onArrowUpWhenEmpty = useCallback(async () => {
+    if (messageEditing.isEditingModeActive) {
+      return
     }
     try {
-      const message = messageInputRef.current.getText()
-      if (message.match(/^\s*$/) && !draftState.file) {
-        log.debug(`Empty message: don't send it...`)
+      // Find the last message from messageCache
+      const messageIds = Object.keys(messageCache)
+        .map(Number)
+        .filter(id => id > 0)
+      if (messageIds.length === 0) {
         return
       }
-
-      const sendMessagePromise = sendMessage(accountId, chatId, {
-        text: replaceColonsSafe(message),
-        file: draftState.file || undefined,
-        quotedMessageId:
-          draftState.quote?.kind === 'WithMessage'
-            ? draftState.quote.messageId
-            : null,
-        viewtype: draftState.viewType,
-      })
-
-      await sendMessagePromise
-
-      // Ensure that the draft is cleared
-      // and the state is reflected in the UI.
-      //
-      // At this point we know that sending has succeeded,
-      // so we do not accidentally remove the draft
-      // if the core fails to send.
-      await BackendRemote.rpc.removeDraft(selectedAccountId(), chatId)
-      window.__reloadDraft && window.__reloadDraft()
-    } catch (error) {
-      log.error(error)
-    } finally {
-      if (textareaRef) {
-        textareaRef.disabled = false
+      const lastMessageId = Math.max(...messageIds)
+      const message = messageCache[lastMessageId]
+      if (
+        message &&
+        message.kind === 'message' &&
+        isMessageEditable(message, selectedChat)
+      ) {
+        // Enter edit mode only for editable messages
+        window.__enterEditMessageMode?.(message)
       }
-      messageInputRef.current.focus()
+    } catch (error) {
+      log.error('Failed to load last sent message for editing', error)
+    }
+  }, [messageEditing.isEditingModeActive, messageCache, selectedChat])
+
+  const voiceMessageDisabled =
+    !!draftState.file || !!draftState.text || messageEditing.isEditingModeActive
+
+  if (useHasChanged2(chatId) && recording) {
+    setRecording(false)
+  }
+
+  const saveVoiceAsDraft = (voiceData: Blob) => {
+    const reader = new FileReader()
+    reader.readAsDataURL(voiceData)
+    reader.onloadend = async () => {
+      if (!reader.result) {
+        log.error('Cannot convert blob to base64. reader.result is null')
+        return
+      }
+      const b64 = reader.result.toString().split(',')[1]
+      // random filename
+      const filename = Math.random().toString(36).substring(2, 10) + '.mp3'
+      const path = await runtime.writeTempFileFromBase64(filename, b64)
+      addFileToDraft(path, filename, 'Voice').catch((reason: any) => {
+        log.error('Cannot send message:', reason)
+        openDialog(AlertDialog, {
+          message: `${tx('error')}: ${reason}`,
+        })
+      })
     }
   }
+
+  const onAudioError = (err: AudioRecorderError) => {
+    log.error('onAudioError', err)
+    let message = err.message
+    if (err.errorType === AudioErrorType.NO_INPUT) {
+      message =
+        tx('chat_unable_to_record_audio') +
+        '\n\n' +
+        'No sound input! Please check your mic settings & permissions! ⚠️'
+    }
+    openDialog(AlertDialog, {
+      message,
+    })
+  }
+
+  const showSendButton = messageEditing.isEditingModeActive
+    ? messageEditing.newText.length > 0
+    : draftState.text.length > 0 || !!draftState.file
+
+  const composerSendMessage =
+    messageEditing.isEditingModeActive || draftIsLoading
+      ? null
+      : async () => {
+          if (chatId === null) {
+            throw new Error('chat id is undefined')
+          }
+          if (!(draftState.text.length > 0) && !draftState.file) {
+            log.debug(`Empty message: don't send it...`)
+            return
+          }
+
+          const preSendDraftState = draftState
+          const sendMessagePromise = sendMessage(accountId, chatId, {
+            text: replaceColonsSafe(draftState.text),
+            file: draftState.file || undefined,
+            filename: draftState.fileName || undefined,
+            quotedMessageId:
+              draftState.quote?.kind === 'WithMessage'
+                ? draftState.quote.messageId
+                : null,
+            viewtype: draftState.viewType,
+          })
+          // _Immediately_ clear the draft from React state.
+          // This does _not_ remove the draft from the back-end yet.
+          // This is primarily to make sure that you can't accidentally
+          // doube-send the same message.
+          //
+          // We could instead disable the textarea
+          // and disable sending the next message
+          // until the previous one has been sent,
+          // but it's unnecessary to block the user in such a way,
+          // because it's not often that `sendMessage` fails.
+          // And also disabling an input makes it lose focus,
+          // so we'd have to re-focus it, which would make screen readers
+          // re-announce it, which is disorienting.
+          // See https://github.com/deltachat/deltachat-desktop/issues/4590#issuecomment-2821985528.
+          props.clearDraftState()
+
+          let sentSuccessfully: boolean
+          try {
+            await sendMessagePromise
+            sentSuccessfully = true
+          } catch (err) {
+            sentSuccessfully = false
+            openDialog(AlertDialog, {
+              message:
+                tx('systemmsg_failed_sending_to', selectedChat.name) +
+                '\n' +
+                tx('error_x', unknownErrorToString(err)),
+            })
+            // Restore the draft, since we failed to send.
+            // Note that this will not save the draft to the backend.
+            //
+            // TODO fix: hypothetically by this point the user
+            // could have started typing a new message already,
+            // and so this would override it on the frontend.
+            props.setDraftState(preSendDraftState)
+          }
+          if (sentSuccessfully) {
+            // TODO fix: hypothetically by this point the user
+            // could have started typing (and even have sent!)
+            // a new message already, so this would override it on the backend.
+            await BackendRemote.rpc.removeDraft(accountId, chatId)
+          }
+        }
+
+  const sendButtonAction: null | (() => void) =
+    !messageEditing.isEditingModeActive
+      ? composerSendMessage
+      : messageEditing.doSendEditRequest
+
+  useKeyBindingAction(KeybindAction.Composer_SelectReplyToUp, () => {
+    if (messageEditing.isEditingModeActive) {
+      return
+    }
+    onSelectReplyToShortcut(KeybindAction.Composer_SelectReplyToUp)
+  })
+
+  useKeyBindingAction(KeybindAction.Composer_SelectReplyToDown, () => {
+    if (messageEditing.isEditingModeActive) {
+      return
+    }
+    onSelectReplyToShortcut(KeybindAction.Composer_SelectReplyToDown)
+  })
+  useKeyBindingAction(KeybindAction.Composer_CancelReply, () => {
+    if (messageEditing.isEditingModeActive) {
+      return
+    }
+    removeQuote()
+  })
 
   const onEmojiIconClick = () => setShowEmojiPicker(!showEmojiPicker)
   const shiftPressed = useRef(false)
   const onEmojiSelect = (emoji: EmojiData) => {
     log.debug(`EmojiPicker: Selected ${emoji.id}`)
-    messageInputRef.current?.insertStringAtCursorPosition(
+    currentComposerMessageInputRef.current?.insertStringAtCursorPosition(
       (emoji as BaseEmoji).native
     )
     if (!shiftPressed.current) {
       setShowEmojiPicker(false)
-      messageInputRef.current?.focus()
+      currentComposerMessageInputRef.current?.focus()
     }
   }
   // track shift key -> update [shiftPressed]
@@ -181,6 +322,12 @@ const Composer = forwardRef<
       if (ev.type === 'keydown' && ev.code === 'Escape') {
         setShowEmojiPicker(false)
         setShowAppPicker(false)
+        if (messageEditing.isEditingModeActive) {
+          messageEditing.cancelEditing()
+          setTimeout(() => {
+            regularMessageInputRef.current?.focus()
+          })
+        }
       }
     }
     // these options are needed, otherwise emoji mart sometimes eats the keydown event
@@ -193,7 +340,8 @@ const Composer = forwardRef<
       document.removeEventListener('keydown', onKey, opt)
       document.removeEventListener('keyup', onKey, opt)
     }
-  }, [shiftPressed])
+  }, [shiftPressed, messageEditing, regularMessageInputRef])
+
   useEffect(() => {
     if (!showEmojiPicker) return
     const onClick = (e: MouseEvent) => {
@@ -217,63 +365,105 @@ const Composer = forwardRef<
     }
   }, [showEmojiPicker, emojiAndStickerRef])
 
-  const onAppSelected = async (appInfo: AppInfo) => {
-    log.debug('App selected', appInfo)
-    const response = await BackendRemote.rpc.getHttpResponse(
-      selectedAccountId(),
-      AppStoreUrl + appInfo.cache_relname
-    )
-    if (response?.blob?.length) {
-      const path = await runtime.writeTempFileFromBase64(
-        appInfo.cache_relname,
-        response.blob
-      )
-      await addFileToDraft(path, 'File')
-      await runtime.removeTempFile(path)
-      setShowAppPicker(false)
-    }
-  }
+  const onAppSelected = messageEditing.isEditingModeActive
+    ? null
+    : async (appInfo: AppInfo) => {
+        log.debug('App selected', appInfo)
+        const downloadUrl = AppStoreUrl + appInfo.cache_relname
+        const responseP = BackendRemote.rpc.getHttpResponse(
+          selectedAccountId(),
+          AppStoreUrl + appInfo.cache_relname
+        )
+        let response: Awaited<typeof responseP>
+        try {
+          response = await responseP
+          if (!(response?.blob?.length > 0)) {
+            throw new Error(
+              'BackendRemote.rpc.getHttpResponse did not return a body'
+            )
+          }
+        } catch (error) {
+          openDialog(AlertDialog, {
+            message: tx(
+              'error_x',
+              'Failed download the app file from the store:\n' +
+                unknownErrorToString(error) +
+                '\n\n' +
+                'You may try to download the app manually from\n\n' +
+                downloadUrl +
+                '\n\n' +
+                'or\n' +
+                'https://webxdc.org/apps'
+            ),
+          })
+          return
+        }
+        const path = await runtime.writeTempFileFromBase64(
+          appInfo.cache_relname,
+          response.blob
+        )
+        await addFileToDraft(path, appInfo.cache_relname, 'File')
+        await runtime.removeTempFile(path)
+        setShowAppPicker(false)
+      }
 
   // Paste file functionality
   // https://github.com/deltachat/deltachat-desktop/issues/2108
-  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    // Skip if no file
-    if (!e.clipboardData.files.length) {
-      return
-    }
-    // when there is a file then don't paste text
-    // https://github.com/deltachat/deltachat-desktop/issues/3261
-    e.preventDefault()
+  const handlePaste = messageEditing.isEditingModeActive
+    ? null
+    : async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+        // Skip if no file
+        if (!e.clipboardData.files.length) {
+          return
+        }
+        // when there is a file then don't paste text
+        // https://github.com/deltachat/deltachat-desktop/issues/3261
+        e.preventDefault()
 
-    // File object
-    const file = e.clipboardData.files[0]
+        // File object
+        const file = e.clipboardData.files[0]
 
-    log.debug(
-      `paste: received file: "${file.name}" ${file.type}`,
-      e.clipboardData.files
-    )
+        log.debug(
+          `paste: received file: "${file.name}" ${file.type}`,
+          e.clipboardData.files
+        )
 
-    const msgType: Viewtype = file.type.startsWith('image') ? 'Image' : 'File'
+        const msgType: T.Viewtype = file.type.startsWith('image')
+          ? 'Image'
+          : 'File'
 
-    try {
-      // Write clipboard to file then attach it to the draft
-      const path = await runtime.writeClipboardToTempFile(
-        file.name || `file.${extension(file.type)}`
-      )
-      await addFileToDraft(path, msgType)
-      // delete file again after it was sucessfuly added
-      await runtime.removeTempFile(path)
-    } catch (err) {
-      log.error('Failed to paste file.', err)
-    }
-  }
+        try {
+          // Write clipboard to file then attach it to the draft
+          const file_content = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onloadend = () => {
+              resolve(reader.result as any)
+            }
+            reader.onabort = reject
+            reader.onerror = reject
+            reader.readAsDataURL(file)
+          })
+          const fileName = file.name || `file.${extension(file.type)}`
+          const path = await runtime.writeTempFileFromBase64(
+            fileName,
+            file_content.split(';base64,')[1]
+          )
+          await addFileToDraft(path, fileName, msgType)
+          // delete file again after it was sucessfuly added
+          await runtime.removeTempFile(path)
+        } catch (err) {
+          log.error('Failed to paste file.', err)
+        }
+      }
 
   const settingsStore = useSettingsStore()[0]
 
   useLayoutEffect(() => {
     // focus composer on chat change
-    messageInputRef.current?.focus()
-  }, [chatId, messageInputRef])
+    // Only one of these is actually rendered at any given moment.
+    regularMessageInputRef.current?.focus()
+    editMessageInputRef.current?.focus()
+  }, [chatId, editMessageInputRef, regularMessageInputRef])
 
   const ariaSendShortcut: string = useMemo(() => {
     if (settingsStore == undefined) {
@@ -293,16 +483,17 @@ const Composer = forwardRef<
   }, [settingsStore])
 
   if (chatId === null) {
-    return <div ref={ref}>Error, chatid missing</div>
+    return <section ref={ref}>Error, chatid missing</section>
   }
 
   if (isContactRequest) {
     return (
-      <div ref={ref} className='composer contact-request'>
+      <section ref={ref} className='composer contact-request'>
         <button
+          type='button'
           className='contact-request-button delete'
           onClick={async () => {
-            if (selectedChat.chatType !== C.DC_CHAT_TYPE_SINGLE) {
+            if (selectedChat.chatType !== 'Single') {
               // if chat gets deleted instead of blocked ask user for confirmation
               if (
                 !(await confirmDialog(
@@ -319,11 +510,10 @@ const Composer = forwardRef<
             unselectChat()
           }}
         >
-          {selectedChat.chatType === C.DC_CHAT_TYPE_SINGLE
-            ? tx('block')
-            : tx('delete')}
+          {selectedChat.chatType === 'Single' ? tx('block') : tx('delete')}
         </button>
         <button
+          type='button'
           className='contact-request-button accept'
           onClick={() => {
             EffectfulBackendActions.acceptChat(selectedAccountId(), chatId)
@@ -331,98 +521,227 @@ const Composer = forwardRef<
         >
           {tx('accept')}
         </button>
-      </div>
-    )
-  } else if (isProtectionBroken) {
-    return (
-      <div ref={ref} className='composer contact-request'>
-        <button
-          className='contact-request-button'
-          onClick={async () => {
-            openDialog(ProtectionBrokenDialog, { name: selectedChat.name })
-          }}
-        >
-          {tx('more_info_desktop')}
-        </button>
-        <button
-          className='contact-request-button'
-          onClick={() => {
-            EffectfulBackendActions.acceptChat(selectedAccountId(), chatId)
-          }}
-        >
-          {tx('ok')}
-        </button>
-      </div>
+      </section>
     )
   } else if (!selectedChat.canSend) {
     return null
   } else {
     return (
-      <div className='composer' ref={ref}>
+      <section
+        className='composer'
+        ref={ref}
+        role='region'
+        // Note that there are other `return`s in this component,
+        // but this `aria-label` doesn't seem to apply to them.
+        //
+        // TODO a11y: when `isEditingModeActive`, we have an "Edit message"
+        // text, which we can use as the label / header.
+        aria-label={
+          messageEditing.isEditingModeActive
+            ? window.static_translate('edit_message')
+            : window.static_translate('write_message_desktop')
+          // We could also add chat name here to make it extra clear
+          // which chat we're in,
+          // but the "Chat" region label
+          // (`id='chat-section-heading'`) is probably enough.
+        }
+      >
         <div className='upper-bar'>
-          {draftState.quote !== null && (
+          {!messageEditing.isEditingModeActive ? (
+            <>
+              {draftState.quote !== null && (
+                <section
+                  className='attachment-quote-section is-quote'
+                  aria-label={tx('menu_reply')}
+                >
+                  {/* Check that this is a "full" quote.
+                  TODO it would be nice to show a placeholder otherwise. */}
+                  {'text' in draftState.quote && (
+                    <Quote quote={draftState.quote} tabIndex={0} />
+                  )}
+                  <CloseButton onClick={removeQuote} />
+                </section>
+              )}
+              {draftState.file && !draftState.vcardContact && (
+                <section
+                  className='attachment-quote-section is-attachment'
+                  aria-label={tx('attachment')}
+                >
+                  {/* TODO make this pretty: draft image/video/attachment */}
+                  {/* <p>file: {draftState.file}</p> */}
+                  {/* {draftState.viewType} */}
+                  <DraftAttachment attachment={draftState} />
+                  <CloseButton onClick={removeFile} />
+                </section>
+              )}
+              {draftState.vcardContact && (
+                <section
+                  className='attachment-quote-section is-attachment'
+                  aria-label={tx('attachment')}
+                >
+                  <VisualVCardComponent
+                    vcardContact={draftState.vcardContact}
+                  />
+                  <CloseButton onClick={removeFile} />
+                </section>
+              )}
+            </>
+          ) : (
             <div className='attachment-quote-section is-quote'>
-              <Quote quote={draftState.quote} tabIndex={0} />
-              <CloseButton onClick={removeQuote} />
-            </div>
-          )}
-          {draftState.file && !draftState.vcardContact && (
-            <div className='attachment-quote-section is-attachment'>
-              {/* TODO make this pretty: draft image/video/attachment */}
-              {/* <p>file: {draftState.file}</p> */}
-              {/* {draftState.viewType} */}
-              <DraftAttachment attachment={draftState} />
-              <CloseButton onClick={removeFile} />
-            </div>
-          )}
-          {draftState.vcardContact && (
-            <div className='attachment-quote-section is-attachment'>
-              <VisualVCardComponent vcardContact={draftState.vcardContact} />
-              <CloseButton onClick={removeFile} />
+              <Quote
+                quote={{
+                  // FYI most of these properties are not used
+                  // inside the `Quote` component.
+
+                  // `...messageEditing.originalMessage`, would also work,
+                  // but the `T.MessageQuote` type and the `T.Message` type
+                  // have some overlap, e.g. the `type` property,
+                  // so let's be explicit.
+                  messageId: messageEditing.originalMessage.id,
+                  chatId: messageEditing.originalMessage.chatId,
+                  isForwarded: messageEditing.originalMessage.isForwarded,
+                  text: messageEditing.originalMessage.text,
+                  overrideSenderName:
+                    messageEditing.originalMessage.overrideSenderName,
+                  viewType: messageEditing.originalMessage.viewType,
+
+                  kind: 'WithMessage',
+                  authorDisplayColor:
+                    messageEditing.originalMessage.sender.color,
+                  authorDisplayName:
+                    messageEditing.originalMessage.sender.displayName,
+                  // It's probably fine to skip image,
+                  // since it's only possible to edit message _text_.
+                  // We'd probably be fine if we only passed `message.text`.
+                  image: null,
+                }}
+                isEditMessage
+                tabIndex={0}
+              />
+              <CloseButton
+                onClick={() => {
+                  messageEditing.cancelEditing()
+                  setTimeout(() => {
+                    regularMessageInputRef.current?.focus()
+                  })
+                }}
+                aria-label={tx('cancel')}
+              />
             </div>
           )}
         </div>
         <div className='lower-bar'>
-          <MenuAttachment
-            addFileToDraft={addFileToDraft}
-            showAppPicker={setShowAppPicker}
-            selectedChat={selectedChat}
-          />
-          {settingsStore && (
-            <ComposerMessageInput
-              ref={messageInputRef}
-              enterKeySends={settingsStore?.desktopSettings.enterKeySends}
-              sendMessage={composerSendMessage}
-              chatId={chatId}
-              updateDraftText={updateDraftText}
-              onPaste={handlePaste}
+          {!messageEditing.isEditingModeActive && !recording && (
+            <MenuAttachment
+              addFileToDraft={addFileToDraft}
+              showAppPicker={setShowAppPicker}
+              selectedChat={selectedChat}
             />
           )}
-          {!runtime.getRuntimeInfo().hideEmojiAndStickerPicker && (
+          {settingsStore && !recording && (
+            <>
+              <ComposerMessageInput
+                text={draftState.text}
+                // We use `hidden` instead of simply conditionally rendering
+                // because the source of truth for the draft text
+                // is stored inside the `ComposerMessageInput`,
+                // and not inside of `useDraft()`.
+                // That is at least between the `updateDraftText()` calls,
+                // but they are throttled / debounced.
+                // But we want to restore the draft text when we exit the
+                // "edit" mode. Hence `hidden` instead of conditional rendering.
+                hidden={messageEditing.isEditingModeActive}
+                isMessageEditingMode={false}
+                ref={regularMessageInputRef}
+                enterKeySends={settingsStore?.desktopSettings.enterKeySends}
+                loadingDraft={draftIsLoading}
+                sendMessageOrEditRequest={
+                  (!messageEditing.isEditingModeActive
+                    ? composerSendMessage
+                    : null) ??
+                  (() => {
+                    log.error(
+                      'Tried to send a message while draft is loading or in message editing mode'
+                    )
+                  })
+                }
+                chatId={chatId}
+                onPaste={handlePaste ?? undefined}
+                onChange={onComposerMessageInputChange}
+                onArrowUpWhenEmpty={onArrowUpWhenEmpty}
+              />
+              <ComposerMessageInput
+                text={messageEditing.newText ?? ''}
+                isMessageEditingMode={true}
+                hidden={!messageEditing.isEditingModeActive}
+                ref={editMessageInputRef}
+                enterKeySends={settingsStore?.desktopSettings.enterKeySends}
+                loadingDraft={false}
+                sendMessageOrEditRequest={
+                  messageEditing.doSendEditRequest ?? (() => {})
+                }
+                chatId={chatId}
+                // Message editing mode doesn't support file pasting.
+                // onPaste={handlePaste}
+                onChange={messageEditing.setNewText ?? (() => {})}
+              />
+            </>
+          )}
+          {!runtime.getRuntimeInfo().hideEmojiAndStickerPicker &&
+            !recording && (
+              <button
+                type='button'
+                className='emoji-button'
+                ref={pickerButtonRef}
+                onClick={onEmojiIconClick}
+                aria-label={tx('emoji')}
+              >
+                <span />
+              </button>
+            )}
+          {showSendButton && (
             <button
               type='button'
-              className='emoji-button'
-              ref={pickerButtonRef}
-              onClick={onEmojiIconClick}
-              aria-label={tx('emoji')}
-            >
-              <span />
-            </button>
-          )}
-          <div className='send-button-wrapper' onClick={composerSendMessage}>
-            <button
+              // This ensures that the button loses focus as we switch between
+              // the editing mode and the regular mode,
+              // so that it's harder to accidentally send a normal message
+              // right after sending the draft by using the keyboard.
+              // Conceptually those are two different buttons.
+              key={messageEditing.isEditingModeActive.toString()}
+              className='send-button'
+              // TODO apply `disabled` if the textarea is empty
+              // or includes only whitespace.
+              // See `doSendEditRequest`.
+              disabled={sendButtonAction == null}
+              onClick={sendButtonAction ?? (() => {})}
               aria-label={tx('menu_send')}
               aria-keyshortcuts={ariaSendShortcut}
+            >
+              <div className='paper-plane'></div>
+            </button>
+          )}
+          {!showSendButton && !voiceMessageDisabled && (
+            <AudioRecorder
+              recording={recording}
+              setRecording={setRecording}
+              saveVoiceAsDraft={saveVoiceAsDraft}
+              onError={onAudioError}
             />
-          </div>
+          )}
         </div>
-        {showAppPicker && (
+        {/* We don't want to show the app picker when
+        `messageEditing.isEditingModeActive` because picking an app
+        modifies the regular message draft, but the draft is not visible
+        when the message editing mode is active.
+
+        Having another condition after `showAppPicker` is not nice,
+        but it shouldn't be really feasible anyway
+        to enter the message editing mode while the app picker is open,
+        and it shouldn't be possible to open the app picker
+        while the message editing mode is active. */}
+        {showAppPicker && !messageEditing.isEditingModeActive && (
           <OutsideClickHelper onClick={() => setShowAppPicker(false)}>
-            <AppPickerWrapper
-              onAppSelected={onAppSelected}
-              apps={apps}
-              setApps={setApps}
-            />
+            <AppPicker onAppSelected={onAppSelected!} />
           </OutsideClickHelper>
         )}
         {showEmojiPicker && (
@@ -431,298 +750,163 @@ const Composer = forwardRef<
             ref={emojiAndStickerRef}
             onEmojiSelect={onEmojiSelect}
             setShowEmojiPicker={setShowEmojiPicker}
+            // Message editing does not support stickers.
+            // The way the sticker picker currently works is that
+            // it simply sends a message when you click on a sticker.
+            hideStickerPicker={messageEditing.isEditingModeActive}
           />
         )}
-      </div>
+      </section>
     )
   }
 })
 
 export default Composer
 
-export type DraftObject = { chatId: number } & Pick<
-  Type.Message,
-  'id' | 'text' | 'file' | 'quote' | 'viewType' | 'vcardContact' | 'webxdcInfo'
-> &
-  MessageTypeAttachmentSubset
-
-function emptyDraft(chatId: number | null): DraftObject {
-  return {
-    id: 0,
-    chatId: chatId || 0,
-    text: '',
-    file: null,
-    fileBytes: 0,
-    fileMime: null,
-    fileName: null,
-    quote: null,
-    viewType: 'Text',
-    vcardContact: null,
-    webxdcInfo: null,
-  }
-}
-
-export function useDraft(
+function useMessageEditing(
   accountId: number,
-  chatId: number | null,
-  isContactRequest: boolean,
-  isProtectionBroken: boolean,
-  canSend: boolean, // no draft needed in chats we can't send messages
-  inputRef: React.MutableRefObject<ComposerMessageInput | null>
-): {
-  draftState: DraftObject
-  removeQuote: () => void
-  updateDraftText: (text: string, InputChatId: number) => void
-  addFileToDraft: (file: string, viewType: T.Viewtype) => Promise<void>
-  removeFile: () => void
-  clearDraft: () => void
-} {
-  const [draftState, _setDraft] = useState<DraftObject>(emptyDraft(chatId))
-  const draftRef = useRef<DraftObject>(emptyDraft(chatId))
-  draftRef.current = draftState
+  chatId: T.BasicChat['id'],
+  editMessageInputRef: React.RefObject<ComposerMessageInput | null>,
+  regularMessageInputRef: React.RefObject<ComposerMessageInput | null>
+) {
+  const tx = useTranslationFunction()
+  const { userFeedback } = useContext(ScreenContext)
 
-  const clearDraft = useCallback(() => {
-    _setDraft(_ => emptyDraft(chatId))
-  }, [chatId])
+  const [_originalMessage, setOriginalMessage] = useState<null | T.Message>(
+    null
+  )
+  // We unset `_originalMessage` when switching between chats below,
+  // but let's still make sure that it belongs to the current chat here.
+  const originalMessage =
+    _originalMessage?.chatId === chatId ? _originalMessage : null
+  const [newText, setNewText] = useState<string>(originalMessage?.text || '')
 
-  const loadDraft = useCallback(
-    (chatId: number) => {
-      if (chatId === null || !canSend) {
-        clearDraft()
+  // Should we also listen for `MsgsChanged` and update the message?
+  // E.g. if it got edited from another device.
+
+  const isEditingModeActive = originalMessage != null
+
+  const cancelEditing = useCallback(() => {
+    setOriginalMessage(null)
+    // This should be unnecessary because `setOriginalMessage(null)`
+    // should be enough, but let's sill clean up.
+    setNewText('')
+  }, [])
+
+  if (useHasChanged2(chatId)) {
+    // Yes, this means that the "edit draft" gets lost on chat change.
+    // Though maybe we can easily keep it between chat switches,
+    // at least for one chat?
+    // Because we do check if `_originalMessage` belongs to the current chat,
+    // so it's safe to not `setOriginalMessage(null)`
+    // when switching between chats.
+    cancelEditing()
+  }
+
+  useEffect(() => {
+    window.__enterEditMessageMode = (newOriginalMessage: T.Message) => {
+      if (newOriginalMessage.chatId !== chatId) {
+        log.error(
+          'Tried to start editing message',
+          newOriginalMessage,
+          `but the message doesn't belong to the current chat=${chatId}.`
+        )
         return
       }
-      BackendRemote.rpc.getDraft(selectedAccountId(), chatId).then(newDraft => {
-        if (!newDraft) {
-          log.debug('no draft')
-          clearDraft()
-          inputRef.current?.setText('')
-        } else {
-          _setDraft(old => ({
-            ...old,
-            id: newDraft.id,
-            text: newDraft.text || '',
-            file: newDraft.file,
-            fileBytes: newDraft.fileBytes,
-            fileMime: newDraft.fileMime,
-            fileName: newDraft.fileName,
-            viewType: newDraft.viewType,
-            quote: newDraft.quote,
-            vcardContact: newDraft.vcardContact,
-            webxdcInfo: newDraft.webxdcInfo,
-          }))
-          inputRef.current?.setText(newDraft.text)
-        }
-        inputRef.current?.setState({ loadingDraft: false })
-        setTimeout(() => {
-          inputRef.current?.focus()
+
+      const prevOriginalMessageId = originalMessage?.id
+      setOriginalMessage(newOriginalMessage)
+      // Let's not reset the text if we're already editing this message.
+      if (newOriginalMessage.id !== prevOriginalMessageId) {
+        setNewText(newOriginalMessage.text)
+      }
+
+      // Wait until the new element is actually rendered, only then focus.
+      setTimeout(() => {
+        editMessageInputRef.current?.focus()
+      })
+    }
+    return () => {
+      window.__enterEditMessageMode = null
+    }
+  }, [chatId, editMessageInputRef, originalMessage?.id])
+
+  const doSendEditRequest = useCallback(() => {
+    if (newText.trim().length === 0) {
+      userFeedback({
+        type: 'error',
+        text: tx('chat_please_enter_message'),
+      })
+      log.error('doEdit called, but newText is empty')
+      return
+    }
+
+    if (originalMessage == null) {
+      // This should not happen, because we don't return
+      // `doSendEditRequest` if the message is null.
+      log.error('doEdit called, but originalMessage is', originalMessage)
+      return
+    }
+
+    // We could also check whether the text is unchanged,
+    // but let's leave it up to the core.
+
+    const originalMessage_ = originalMessage
+    BackendRemote.rpc
+      .sendEditRequest(accountId, originalMessage.id, newText)
+      .catch(err => {
+        log.error('Failed to edit a message', err)
+        // Restore the "editing" state.
+        //
+        // FYI yes, theoretically the user could start editing another message
+        // before the promise gets settled,
+        // but this backend call shouldn't take long,
+        // and it's rare that it would fail.
+        setOriginalMessage(originalMessage_)
+        setNewText(newText)
+
+        userFeedback({
+          type: 'error',
+          // Probably not worth translating, since it's rare.
+          text: 'Failed to edit the message',
         })
       })
-    },
-    [clearDraft, inputRef, canSend]
-  )
 
-  useEffect(() => {
-    log.debug('reloading chat because id changed', chatId)
-    //load
-    loadDraft(chatId || 0)
-    window.__reloadDraft = loadDraft.bind(null, chatId || 0)
-    return () => {
-      window.__reloadDraft = null
-    }
-  }, [chatId, loadDraft, isContactRequest, isProtectionBroken])
+    // Otimistically exit the "edit" mode,
+    // without waiting for the backend call to finish.
+    setOriginalMessage(null)
+    setNewText('')
+    // Focus the regular message input after editing
+    setTimeout(() => {
+      regularMessageInputRef.current?.focus()
+    })
+  }, [
+    accountId,
+    newText,
+    originalMessage,
+    tx,
+    userFeedback,
+    regularMessageInputRef,
+  ])
 
-  const saveDraft = useCallback(async () => {
-    if (chatId === null || !canSend) {
-      return
-    }
-    if (inputRef.current?.textareaRef.current?.disabled) {
-      // Guard against strange races
-      log.warn('Do not save draft while sending')
-      return
-    }
-    const accountId = selectedAccountId()
-
-    const draft = draftRef.current
-    const oldChatId = chatId
-    if (
-      (draft.text && draft.text.length > 0) ||
-      (draft.file && draft.file != '') ||
-      !!draft.quote
-    ) {
-      await BackendRemote.rpc.miscSetDraft(
-        accountId,
-        chatId,
-        draft.text,
-        draft.file !== '' ? draft.file : null,
-        draft.quote?.kind === 'WithMessage' ? draft.quote.messageId : null,
-        draft.viewType
-      )
-    } else {
-      await BackendRemote.rpc.removeDraft(accountId, chatId)
-    }
-
-    if (oldChatId !== chatId) {
-      log.debug('switched chat no reloading of draft required')
-      return
-    }
-    const newDraft = chatId
-      ? await BackendRemote.rpc.getDraft(accountId, chatId)
-      : null
-    if (newDraft) {
-      _setDraft(old => ({
-        ...old,
-        id: newDraft.id,
-        file: newDraft.file,
-        fileBytes: newDraft.fileBytes,
-        fileMime: newDraft.fileMime,
-        fileName: newDraft.fileName,
-        viewType: newDraft.viewType,
-        quote: newDraft.quote,
-        vcardContact: newDraft.vcardContact,
-        webxdcInfo: newDraft.webxdcInfo,
-      }))
-      // don't load text to prevent bugging back
-    } else {
-      clearDraft()
-    }
-  }, [chatId, clearDraft, canSend, inputRef])
-
-  const updateDraftText = (text: string, InputChatId: number) => {
-    if (chatId !== InputChatId) {
-      log.warn("chat Id and InputChatId don't match, do nothing")
-    } else {
-      if (draftRef.current) {
-        draftRef.current.text = text // don't need to rerender on text change
-      }
-      saveDraft()
+  // An early return to help TypeScript.
+  if (!isEditingModeActive) {
+    return {
+      isEditingModeActive,
+      cancelEditing,
     }
   }
-
-  const removeQuote = useCallback(() => {
-    if (draftRef.current) {
-      draftRef.current.quote = null
-    }
-    saveDraft()
-    inputRef.current?.focus()
-  }, [inputRef, saveDraft])
-
-  const removeFile = useCallback(() => {
-    draftRef.current.file = ''
-    draftRef.current.viewType = 'Text'
-    saveDraft()
-    inputRef.current?.focus()
-  }, [inputRef, saveDraft])
-
-  const addFileToDraft = useCallback(
-    async (file: string, viewType: Viewtype) => {
-      draftRef.current.file = file
-      draftRef.current.viewType = viewType
-      inputRef.current?.focus()
-      return saveDraft()
-    },
-    [inputRef, saveDraft]
-  )
-
-  useKeyBindingAction(KeybindAction.Composer_SelectReplyToUp, () => {
-    onSelectReplyToShortcut(KeybindAction.Composer_SelectReplyToUp)
-  })
-  useKeyBindingAction(KeybindAction.Composer_SelectReplyToDown, () => {
-    onSelectReplyToShortcut(KeybindAction.Composer_SelectReplyToDown)
-  })
-  useKeyBindingAction(KeybindAction.Composer_CancelReply, () => {
-    removeQuote()
-  })
-  const { jumpToMessage } = useMessage()
-  const onSelectReplyToShortcut = async (
-    upOrDown:
-      | KeybindAction.Composer_SelectReplyToUp
-      | KeybindAction.Composer_SelectReplyToDown
-  ) => {
-    if (chatId == undefined || !canSend) {
-      return
-    }
-    const quoteMessage = (messageId: number) => {
-      draftRef.current.quote = {
-        kind: 'WithMessage',
-        messageId,
-      } as Type.MessageQuote
-      saveDraft()
-
-      // TODO perf: jumpToMessage is not instant, but it should be
-      // since the message is (almost?) always already rendered.
-      jumpToMessage({
-        accountId,
-        msgId: messageId,
-        msgChatId: chatId,
-        highlight: true,
-        // The message is usually already in view,
-        // so let's not scroll at all if so.
-        scrollIntoViewArg: { block: 'nearest' },
-      })
-    }
-    // TODO perf: I imagine this is pretty slow, given IPC and some chats
-    // being quite large. Perhaps we could hook into the
-    // MessageList component, or share the list of messages with it.
-    // If not, at least cache this list. Use the cached version first,
-    // then, when the Promise resolves, execute this code again in case
-    // the message list got updated so that it feels more reponsive.
-    const messageIds = await BackendRemote.rpc.getMessageIds(
-      accountId,
-      chatId,
-      false,
-      false
-    )
-    const currQuote = draftRef.current.quote
-    if (!currQuote) {
-      if (upOrDown === KeybindAction.Composer_SelectReplyToUp) {
-        quoteMessage(messageIds[messageIds.length - 1])
-      }
-      return
-    }
-    if (currQuote.kind !== 'WithMessage') {
-      // Or shall we override with the last message?
-      return
-    }
-    const currQuoteMessageIdInd = messageIds.lastIndexOf(currQuote.messageId)
-    if (
-      currQuoteMessageIdInd === messageIds.length - 1 && // Last message
-      upOrDown === KeybindAction.Composer_SelectReplyToDown
-    ) {
-      removeQuote()
-      return
-    }
-    const newId: number | undefined =
-      messageIds[
-        upOrDown === KeybindAction.Composer_SelectReplyToUp
-          ? currQuoteMessageIdInd - 1
-          : currQuoteMessageIdInd + 1
-      ]
-    if (newId == undefined) {
-      return
-    }
-    quoteMessage(newId)
-  }
-
-  useEffect(() => {
-    window.__setQuoteInDraft = (messageId: number) => {
-      draftRef.current.quote = {
-        kind: 'WithMessage',
-        messageId,
-      } as Partial<Type.MessageQuote> as any as Type.MessageQuote
-      saveDraft()
-      inputRef.current?.focus()
-    }
-    return () => {
-      window.__setQuoteInDraft = null
-    }
-  }, [draftRef, inputRef, saveDraft])
 
   return {
-    draftState,
-    removeQuote,
-    updateDraftText,
-    addFileToDraft,
-    removeFile,
-    clearDraft,
+    isEditingModeActive,
+    originalMessage,
+    newText,
+    setNewText,
+    doSendEditRequest,
+    /**
+     * Exit the "edit" mode, without doing anything else.
+     * This is a no-op when the editing mode is already not active.
+     */
+    cancelEditing,
   }
 }

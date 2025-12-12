@@ -6,11 +6,12 @@ import { onReady } from '../onready'
 import { Store, useStore } from './store'
 
 /**
- * core ui config key to mute an account on desktop.
+ * core config key to mute an account on desktop.
  *
  * `"1"` means muted, anything else is interpreted as not muted
  */
-const UI_CONFIG_DESKTOP_MUTED = 'ui.desktop.muted'
+const CONFIG_MUTED = 'is_muted'
+const UI_CONFIG_DESKTOP_MUTED_OLD = 'ui.desktop.muted'
 
 interface AccountNotificationState {
   muted: boolean
@@ -39,14 +40,23 @@ class AccountNotificationStore extends Store<AccountNotificationStoreState> {
     loadSettings: async () => {
       const accounts = await BackendRemote.rpc.getAllAccountIds()
       const accountInfo = await Promise.all(
-        accounts.map(async accountId => ({
-          id: accountId,
-          muted:
-            (await BackendRemote.rpc.getConfig(
-              accountId,
-              UI_CONFIG_DESKTOP_MUTED
-            )) === '1',
-        }))
+        accounts.map(async accountId => {
+          const config_old = await BackendRemote.rpc.batchGetConfig(accountId, [
+            UI_CONFIG_DESKTOP_MUTED_OLD,
+            CONFIG_MUTED,
+          ])
+          if (config_old[UI_CONFIG_DESKTOP_MUTED_OLD]) {
+            await BackendRemote.rpc.batchSetConfig(accountId, {
+              [UI_CONFIG_DESKTOP_MUTED_OLD]: null,
+              [CONFIG_MUTED]: config_old[UI_CONFIG_DESKTOP_MUTED_OLD],
+            })
+            config_old[CONFIG_MUTED] = config_old[UI_CONFIG_DESKTOP_MUTED_OLD]
+          }
+          return {
+            id: accountId,
+            muted: config_old[CONFIG_MUTED] === '1',
+          }
+        })
       )
 
       const accountsAdditionalConfig: AccountNotificationStoreState['accounts'] =
@@ -59,7 +69,7 @@ class AccountNotificationStore extends Store<AccountNotificationStoreState> {
     setMuted: async (accountId: number, mute: boolean) => {
       await BackendRemote.rpc.setConfig(
         accountId,
-        UI_CONFIG_DESKTOP_MUTED,
+        CONFIG_MUTED,
         mute ? '1' : '0'
       )
       this.effect.loadSettings()

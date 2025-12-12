@@ -18,11 +18,47 @@ import useDialog from '../../../hooks/dialog/useDialog'
 import UseOtherServerDialog from './UseOtherServerDialog'
 import { BackendRemote } from '../../../backend-com'
 
+import { ContextMenuContext } from '../../../contexts/ContextMenuContext'
+import { mouseEventToPosition } from '../../../utils/mouseEventToPosition'
+import { OpenDialog } from '../../../contexts/DialogContext'
+import ProxyConfiguration from '../../dialogs/ProxyConfiguration'
+import { selectedAccountId } from '../../../ScreenController'
+import { TranslationKey } from '@deltachat-desktop/shared/translationKeyType'
+
 type Props = {
   onCancel: () => void
   selectedAccountId: number
 }
 
+function buildContextMenu(
+  openDialog: OpenDialog,
+  tx: (key: TranslationKey) => string
+) {
+  return [
+    {
+      label: tx('proxy_use_proxy'),
+      action: () => {
+        openDialog(ProxyConfiguration, {
+          accountId: selectedAccountId(),
+          configured: false,
+        })
+      },
+      dataTestid: 'proxy-context-menu-item',
+    },
+  ]
+}
+
+/**
+ * Sub component of WelcomeScreen to set a Displayname to create an account
+ * or open a dialog with some options to use another server
+ *
+ * This is part of the instantOnboarding flow, that means possibly
+ * the user comes here after having scanned a QR code of type
+ * DCACCOUNT
+ * DCLOGIN
+ * DC_ASK_VERIFYCONTACT
+ * DC_ASK_VERIFYGROUP
+ */
 export default function InstantOnboardingScreen({
   onCancel,
   selectedAccountId,
@@ -39,6 +75,22 @@ export default function InstantOnboardingScreen({
   const [displayName, setDisplayName] = useState('')
   const [profilePicture, setProfilePicture] = useState<string | null>(null)
   const [showMissingNameError, setShowMissingNameError] = useState(false)
+
+  const { openContextMenu } = useContext(ContextMenuContext)
+
+  const showMenu = (
+    event: React.MouseEvent<
+      HTMLDivElement | HTMLAnchorElement | HTMLLIElement,
+      MouseEvent
+    >
+  ) => {
+    const items = buildContextMenu(openDialog, tx)
+
+    openContextMenu({
+      ...mouseEventToPosition(event),
+      items,
+    })
+  }
 
   useEffect(() => {
     ;(async () => {
@@ -89,7 +141,9 @@ export default function InstantOnboardingScreen({
   const saveDisplayName = () =>
     BackendRemote.rpc.setConfig(selectedAccountId, 'displayname', displayName)
 
-  const onConfirm = async () => {
+  const onConfirm = async (event: React.FormEvent) => {
+    event.preventDefault()
+
     if (!displayName) {
       setShowMissingNameError(true)
       return
@@ -131,53 +185,57 @@ export default function InstantOnboardingScreen({
     <>
       <DialogHeader
         onClickBack={onClickBack}
+        onContextMenuClick={showMenu}
         title={tx('instant_onboarding_title')}
       />
       <DialogBody className={styles.welcomeScreenBody}>
         <DialogContent paddingBottom>
-          <ProfileImageSelector
-            displayName={displayName}
-            profilePicture={profilePicture}
-            setProfilePicture={onChangeProfileImage}
-          />
-          <DeltaInput
-            key='displayName'
-            id='displayName'
-            placeholder={tx('pref_your_name')}
-            value={displayName}
-            onChange={onChangeDisplayName}
-            onBlur={saveDisplayName}
-            autoFocus={true}
-          />
-          {showMissingNameError && (
-            <p className={styles.inputError}>{tx('please_enter_name')}</p>
-          )}
-          <AdditionalActionInfo accountId={selectedAccountId} />
-          <p>{tx('set_name_and_avatar_explain')}</p>
-          <div className={styles.welcomeScreenButtonGroup}>
-            <div className={styles.instantOnboardingAgreement}>
-              {welcomeQr?.qr.kind !== 'login' && <UserAgreement />}
-              {welcomeQr?.qr.kind === 'login' && (
-                <>{tx('qrlogin_ask_login', welcomeQr.qr.address)}</>
-              )}
+          <form onSubmit={onConfirm}>
+            <ProfileImageSelector
+              displayName={displayName}
+              profilePicture={profilePicture}
+              setProfilePicture={onChangeProfileImage}
+            />
+            <DeltaInput
+              key='displayName'
+              id='displayName'
+              placeholder={tx('pref_your_name')}
+              value={displayName}
+              onChange={onChangeDisplayName}
+              onBlur={saveDisplayName}
+              autoFocus={true}
+            />
+            {showMissingNameError && (
+              <p className={styles.inputError}>{tx('please_enter_name')}</p>
+            )}
+            <AdditionalActionInfo accountId={selectedAccountId} />
+            <p>{tx('set_name_and_avatar_explain')}</p>
+            <div className={styles.welcomeScreenButtonGroup}>
+              <div className={styles.instantOnboardingAgreement}>
+                {welcomeQr?.qr.kind !== 'login' && <UserAgreement />}
+                {welcomeQr?.qr.kind === 'login' && (
+                  <>{tx('qrlogin_ask_login', welcomeQr.qr.address)}</>
+                )}
+              </div>
+              <Button
+                type='submit'
+                className={styles.welcomeScreenButton}
+                styling='primary'
+                data-testid='login-button'
+              >
+                {welcomeQr?.qr.kind === 'login'
+                  ? tx('login_title')
+                  : tx('instant_onboarding_create')}
+              </Button>
+              <Button
+                className={styles.welcomeScreenButton}
+                onClick={showOtherOptions}
+                data-testid='other-login-button'
+              >
+                {tx('instant_onboarding_show_more_instances')}
+              </Button>
             </div>
-            <Button
-              className={styles.welcomeScreenButton}
-              styling='primary'
-              onClick={onConfirm}
-            >
-              {welcomeQr?.qr.kind === 'login'
-                ? tx('login')
-                : tx('instant_onboarding_create')}
-            </Button>
-            <Button
-              className={styles.welcomeScreenButton}
-              styling='secondary'
-              onClick={showOtherOptions}
-            >
-              {tx('instant_onboarding_show_more_instances')}
-            </Button>
-          </div>
+          </form>
         </DialogContent>
       </DialogBody>
     </>

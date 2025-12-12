@@ -33,8 +33,6 @@ function durationToString(
       return neverMeansAutomatic ? tx('automatic') : tx('never')
     case AutodeleteDuration.AT_ONCE:
       return tx('autodel_at_once')
-    case AutodeleteDuration.ONE_MINUTE:
-      return tx('after_1_minute')
     case AutodeleteDuration.ONE_HOUR:
       return tx('autodel_after_1_hour')
     case AutodeleteDuration.ONE_DAY:
@@ -140,15 +138,17 @@ export default function Autodelete({
       >
         {tx('autodel_device_title')}
       </SettingsSelector>
-      <SettingsSelector
-        onClick={onOpenDialog.bind(null, true)}
-        currentValue={durationToString(
-          settingsStore.settings['delete_server_after'],
-          isChatMail
-        )}
-      >
-        {tx('autodel_server_title')}
-      </SettingsSelector>
+      {!isChatMail && (
+        <SettingsSelector
+          onClick={onOpenDialog.bind(null, true)}
+          currentValue={durationToString(
+            settingsStore.settings['delete_server_after'],
+            isChatMail
+          )}
+        >
+          {tx('autodel_server_title')}
+        </SettingsSelector>
+      )}
     </>
   )
 }

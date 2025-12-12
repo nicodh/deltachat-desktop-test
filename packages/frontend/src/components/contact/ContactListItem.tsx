@@ -39,17 +39,24 @@ export const DeltaCheckbox = (props: {
     </div>
   )
 }
-export function ContactListItem(props: {
-  contact: Type.Contact
-  onClick?: (contact: Type.Contact) => void
-  showCheckbox: boolean
-  checked: boolean
-  showRemove: boolean
-  onCheckboxClick?: (contact: Type.Contact) => void
-  onRemoveClick?: (contact: Type.Contact) => void
-  disabled?: boolean
-  onContextMenu?: MouseEventHandler<HTMLButtonElement>
-}) {
+export function ContactListItem(
+  props: {
+    tagName: 'li' | 'div'
+    style?: React.CSSProperties
+    contact: Type.Contact
+    onClick?: (contact: Type.Contact) => void
+    showCheckbox: boolean
+    checked: boolean
+    showRemove: boolean
+    onCheckboxClick?: (contact: Type.Contact) => void
+    onRemoveClick?: (contact: Type.Contact) => void
+    disabled?: boolean
+    onContextMenu?: MouseEventHandler<HTMLButtonElement>
+  } & Pick<
+    React.HTMLAttributes<HTMLDivElement>,
+    'aria-setsize' | 'aria-posinset'
+  >
+) {
   const tx = useTranslationFunction()
 
   const {
@@ -84,15 +91,22 @@ export function ContactListItem(props: {
   const rovingTabindex = useRovingTabindex(refMain)
 
   return (
-    <div
+    <props.tagName
       className={classNames('contact-list-item', { disabled })}
+      style={props.style}
       key={contact.id}
       // Apply these to the wrapper element,
       // because there may be several interactive elements in this component.
       onKeyDown={rovingTabindex.onKeydown}
       onFocus={rovingTabindex.setAsActiveElement}
+      // FYI NVDA doesn't announce these, as of 2025-04.
+      // They probably need to be on the focusable item
+      // in order for it to work.
+      aria-setsize={props['aria-setsize']}
+      aria-posinset={props['aria-posinset']}
     >
       <button
+        type='button'
         ref={refMain}
         className={classNames(
           'contact-list-item-button',
@@ -103,10 +117,10 @@ export function ContactListItem(props: {
         // still want to keep it focusable so that the context menu can be
         // activated, and for screen-readers.
         aria-disabled={disabled}
+        // Keep in mind that we have to be careful with disabled elements
+        // that are also part of the roving tabindex widget,
+        // because `tabindex="0"` does _not_ make disabled elements focusable.
         disabled={disabled && !onContextMenu}
-        // FYI this makes this element keyboard-navigarble
-        // regardless of whether it is disabled.
-        // This is probably fine.
         tabIndex={rovingTabindex.tabIndex}
         onClick={() => {
           if (disabled) return
@@ -121,6 +135,7 @@ export function ContactListItem(props: {
           onCheckboxClick()
         }}
         onContextMenu={onContextMenu}
+        aria-haspopup={onContextMenu != undefined ? 'menu' : undefined}
       >
         <Contact contact={contact} />
       </button>
@@ -134,6 +149,7 @@ export function ContactListItem(props: {
       )}
       {showRemove && contact.id !== 1 && (
         <button
+          type='button'
           className='btn-remove'
           onClick={onRemoveClick}
           disabled={disabled}
@@ -143,6 +159,6 @@ export function ContactListItem(props: {
           <Icon icon='cross' coloring='remove' />
         </button>
       )}
-    </div>
+    </props.tagName>
   )
 }

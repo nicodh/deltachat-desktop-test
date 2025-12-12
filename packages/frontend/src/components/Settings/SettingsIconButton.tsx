@@ -11,6 +11,7 @@ type Props = PropsWithChildren<{
   icon: IconName
   isLink?: boolean
   onClick: () => void
+  dataTestid?: string
 }>
 
 export default function SettingsIconButton({
@@ -18,12 +19,18 @@ export default function SettingsIconButton({
   icon,
   isLink = false,
   onClick,
+  dataTestid,
 }: Props) {
   return (
-    <button className={styles.settingsIconButton} onClick={onClick}>
-      <Icon className={styles.settingsIcon} icon={icon} />
+    <button
+      type='button'
+      className={styles.settingsIconButton}
+      onClick={onClick}
+      data-testid={dataTestid}
+    >
+      <Icon icon={icon} />
       <span className={styles.settingsIconButtonLabel}>{children}</span>
-      {isLink && <Icon className={styles.settingsIcon} icon='open_in_new' />}
+      {isLink && <Icon icon='open_in_new' />}
     </button>
   )
 }

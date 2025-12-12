@@ -1,3 +1,9 @@
+@use '../mixins';
+@use '../variables';
+
+// limit for text width, needed to trigger ellipsis
+$info-text-max-width: 400px;
+
 .message-wrapper {
   --shortcut-menu-visibility: hidden;
   --shortcut-menu-multiplier: 0;
@@ -13,14 +19,15 @@
   display: inline-flex;
   flex-direction: row;
   align-items: stretch;
+  max-width: 75%;
 
   & > .author-avatar {
-    @include button-reset;
+    @include mixins.button-reset;
 
     align-self: flex-end;
     bottom: 0px;
     position: static;
-    margin-right: 8px;
+    margin-inline-end: 8px;
     user-select: none;
 
     img {
@@ -38,6 +45,8 @@
       & > .label {
         user-select: none;
         color: var(--avatarLabelColor);
+        --local-avatar-color: #bcbac9;
+        background-color: var(--local-avatar-color);
 
         top: -121px;
         left: -10px;
@@ -47,6 +56,23 @@
         font-size: 25px;
         line-height: 36px;
         cursor: pointer;
+
+        @supports (
+          // text-wrap was introduced in 2023 slightly after color-mix,
+          // since we can't test for color-mix support directly we use this instead.
+          text-wrap: wrap
+        ) {
+          // make avatars look slightly 3D
+          background: linear-gradient(
+            var(--avatarGradientAngle),
+            var(--local-avatar-color),
+            color-mix(
+              in srgb,
+              var(--local-avatar-color) var(--avatarGradientMixFactor),
+              white
+            )
+          );
+        }
       }
     }
   }
@@ -58,18 +84,40 @@
     border-radius: 16px;
     --msg-container-padding-horizontal: 12px;
     --msg-container-padding-top: 10px;
-    padding-right: var(--msg-container-padding-horizontal);
-    padding-left: var(--msg-container-padding-horizontal);
+    padding-inline-end: var(--msg-container-padding-horizontal);
+    padding-inline-start: var(--msg-container-padding-horizontal);
     padding-top: var(--msg-container-padding-top);
     padding-bottom: 10px;
 
     .msg-body {
       &.msg-body--clickable {
-        @include button-reset;
+        @include mixins.button-reset;
         display: block;
 
         > .text {
           cursor: pointer;
+        }
+      }
+      &.call {
+        > .text {
+          --call-icon-size: 24px;
+          margin-inline-end: var(--call-icon-size);
+          white-space: nowrap;
+          font-weight: bold;
+          &::after {
+            content: '';
+            position: absolute;
+            top: 18px;
+            inset-inline-end: 8px;
+            transform: translateY(-50%);
+            width: var(--call-icon-size);
+            height: var(--call-icon-size);
+            @include mixins.color-svg(
+              './images/icons/phone.svg',
+              var(--messageText),
+              100%
+            );
+          }
         }
       }
 
@@ -85,7 +133,7 @@
         white-space: pre-wrap;
         cursor: default;
 
-        margin-right: 10px;
+        margin-inline-end: 10px;
       }
     }
 
@@ -94,10 +142,63 @@
         height: 171px;
         border-radius: 7%;
         cursor: pointer;
+        user-select: none;
+        // firefox does not support this, but chromium and webkit do https://caniuse.com/?search=user-drag
+        -webkit-user-drag: none;
       }
-      div.name {
+      // nowrap and min-height address the problem that
+      // the height of a message bubble should not change
+      // after it's first load, even if the content changes
+      // after loading webxdcInfo async
+      // see https://github.com/deltachat/deltachat-desktop/issues/3753
+      div.info-text {
+        display: flex;
+        flex-direction: row;
+        max-width: $info-text-max-width;
+        min-width: 0;
+        white-space: nowrap;
         font-size: medium;
         font-weight: 300;
+        gap: 3px;
+      }
+      div.name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      div.document {
+        flex-shrink: 999999999999999;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        &:not(:empty)::after {
+          content: '–';
+          margin-inline-start: 3px;
+        }
+        &:empty {
+          display: none;
+        }
+      }
+      div.summary {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: $info-text-max-width;
+
+        $font-size: 0.875rem;
+        $line-height: 1.15;
+        font-size: $font-size;
+        line-height: $line-height;
+        // Ensure that even if the element is empty
+        // (e.g. while we're loading `webxdcInfo`),
+        // it still takes height, so that when the info finally loads
+        // and `summary` is present, the message bubble doesn't get taller,
+        // which would result in the message list getting scrolled.
+        // See
+        // https://github.com/deltachat/deltachat-desktop/pull/5227#discussion_r2173774006.
+        min-height: calc($font-size * $line-height);
       }
       div.experimental {
         color: var(--colorDanger);
@@ -120,11 +221,11 @@
   }
 
   .show-html {
-    @include button-reset;
+    @include mixins.button-reset;
 
     border: none;
     background-color: transparent;
-    padding-left: 0;
+    padding-inline-start: 0;
     color: var(--colorPrimary);
     &:hover {
       cursor: pointer;
@@ -140,7 +241,7 @@
     button {
       border: none;
       background-color: transparent;
-      padding-left: 0;
+      padding-inline-start: 0;
       color: var(--colorPrimary);
     }
   }
@@ -149,27 +250,43 @@
 // States that modify the message bubble appearance
 
 .message.incoming {
-  margin-left: 0;
-  margin-right: 32px;
+  margin-inline-start: 0;
+
+  .msg-body.call > .text::after {
+    @include mixins.color-svg(
+      './images/icons/phone.svg',
+      var(--messageText),
+      100%
+    );
+  }
 
   .metadata:not(.with-image-no-caption) {
-    & > .padlock-icon {
-      @include color-svg(
-        './images/padlock.svg',
-        var(--messagePadlockIncoming),
+    .email-icon {
+      @include mixins.color-svg(
+        './images/icons/email.svg',
+        var(--messageMetadataIconColorIncoming),
         125%
       );
     }
 
-    & > .location-icon {
-      @include color-svg(
+    .location-icon {
+      @include mixins.color-svg(
         './images/map-marker.svg',
-        var(--messagePadlockIncoming),
+        var(--messageMetadataIconColorIncoming),
         100%
       );
     }
 
-    & > .date {
+    .saved-message-icon {
+      @include mixins.color-svg(
+        './images/icons/bookmark-filled.svg',
+        var(--messageMetadataIconColorIncoming),
+        100%
+      );
+    }
+
+    .date,
+    .edited {
       color: var(--messageMetadataIncoming);
     }
   }
@@ -180,44 +297,52 @@
 
     &,
     .message-attachment-media {
-      border-bottom-left-radius: 1px;
+      border-end-start-radius: 1px;
     }
   }
 }
 
 .message.outgoing {
   flex-direction: row-reverse;
-  float: right;
-  margin-left: 32px;
-  margin-right: 0;
+  float: inline-end;
+  margin-inline-end: 0;
 
   .metadata:not(.with-image-no-caption) {
-    & > .date {
+    .date,
+    .edited {
       color: var(--messageOutgoingStatusColor);
     }
 
-    & > .padlock-icon {
-      @include color-svg(
-        './images/padlock.svg',
-        var(--messagePadlockOutgoing),
+    .email-icon {
+      @include mixins.color-svg(
+        './images/icons/email.svg',
+        var(--messageMetadataIconColorOutgoing),
         125%
       );
     }
 
-    & > .location-icon {
-      @include color-svg(
+    .location-icon {
+      @include mixins.color-svg(
         './images/map-marker.svg',
-        var(--messagePadlockOutgoing),
+        var(--messageMetadataIconColorOutgoing),
         100%
       );
     }
 
-    & > .status-icon.read,
-    & > .status-icon.delivered {
+    .saved-message-icon {
+      @include mixins.color-svg(
+        './images/icons/bookmark-filled.svg',
+        var(--messageMetadataIconColorOutgoing),
+        100%
+      );
+    }
+
+    .status-icon.read,
+    .status-icon.delivered {
       background-color: var(--messageOutgoingStatusColor);
     }
   }
-  .metadata.with-image-no-caption > .status-icon {
+  .metadata.with-image-no-caption .status-icon {
     background-color: white;
   }
 
@@ -227,7 +352,7 @@
 
     &,
     .message-attachment-media {
-      border-bottom-right-radius: 1px;
+      border-end-end-radius: 1px;
     }
   }
 }
@@ -247,7 +372,7 @@
       background: var(--messageBg);
 
       padding: 5px;
-      padding-left: 6px;
+      padding-inline-start: 6px;
       border-radius: 7px;
 
       & > .quote {
@@ -258,6 +383,8 @@
 
   .message-attachment-media {
     background-color: transparent;
+    // no border radius for stickers
+    border-radius: 0px;
     & > .attachment-content {
       // Make space for the footer, which is `position: absolute;`.
       // However, this does not account for the case
@@ -269,7 +396,7 @@
   }
 
   .metadata {
-    float: right;
+    float: inline-end;
     padding: 4px 8px 1px 8px;
     background-color: #01010159;
     border-radius: 4px;
@@ -278,17 +405,26 @@
   }
 
   .metadata {
-    & > .date {
+    .date,
+    .edited {
       font-size: 11px;
       color: white;
     }
 
-    & > .padlock-icon {
-      @include color-svg('./images/padlock.svg', white, 125%);
+    .email-icon {
+      @include mixins.color-svg('./images/icons/email.svg', white, 125%);
     }
 
-    & > .location-icon {
-      @include color-svg('./images/map-marker.svg', white, 100%);
+    .location-icon {
+      @include mixins.color-svg('./images/map-marker.svg', white, 100%);
+    }
+
+    .saved-message-icon {
+      @include mixins.color-svg(
+        './images/icons/bookmark-filled.svg',
+        white,
+        100%
+      );
     }
   }
 
@@ -318,15 +454,10 @@
     opacity: 0.86;
 
     .forwarded-indicator-button {
-      @include button-reset;
+      @include mixins.button-reset;
 
       cursor: pointer;
     }
-  }
-  .message-attachment-media {
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-    margin-top: 0;
   }
 }
 
@@ -338,31 +469,12 @@
   }
 }
 
-// Spec: container > 593px
-@media (min-width: 926px) {
-  .message {
-    max-width: 75%;
-
-    &.incoming {
-      margin-right: auto;
-    }
-
-    &.outgoing {
-      margin-left: auto;
-    }
-  }
-}
-
-@media (max-width: 925px) {
+@media (max-width: variables.$breakpoint-messagelist) {
   .message {
     max-width: 100%;
 
-    &.incoming {
-      margin-right: auto;
-    }
-
-    &.outgoing {
-      margin-left: auto;
+    img.portrait:not(.sticker) {
+      height: 300px;
     }
   }
 }
@@ -370,20 +482,12 @@
 .info-message {
   width: 100%;
   text-align: center;
-  margin: 26px 0px;
   display: flex;
   flex-direction: column;
   align-items: center;
 
-  img.verified-icon-info-msg {
-    --size: 64px;
-    width: var(--size);
-    height: var(--size);
-    margin-bottom: 10px;
-  }
-
   .bubble {
-    @include button-reset;
+    @include mixins.button-reset;
 
     display: inline-block;
     text-align: center;
@@ -393,6 +497,7 @@
     border-radius: 20px;
     opacity: 0.9;
     color: var(--infoMessageBubbleText);
+    outline-offset: 4px;
 
     .status-icon.sending {
       background-color: var(--infoMessageBubbleText);
@@ -400,6 +505,12 @@
   }
 
   &.daymarker {
+    // Be careful with overriding margins on messages, see
+    // commit c56a78595df073bada81e1f769407990e37d8d57
+    // (https://github.com/deltachat/deltachat-desktop/pull/5244).
+    // `margin-top` should be fine, unlike margin-bottom.
+    margin-top: 1.5rem;
+
     .bubble {
       font-weight: bold;
     }
@@ -440,7 +551,7 @@
 // quote
 
 .quote-background {
-  @include button-reset;
+  @include mixins.button-reset;
 
   overflow: hidden;
   max-width: 100%;
@@ -448,9 +559,9 @@
 
 .message .msg-container .quote,
 .composer .quote {
-  border-left: 3px gray solid;
+  border-inline-start: 3px gray solid;
   padding: 0 4px;
-  padding-left: 9px;
+  padding-inline-start: 9px;
   margin: 2px 0 5px 0;
   display: flex;
   --quote-img-size: 36px;
@@ -507,16 +618,26 @@
     // overflow the chat container, for non-self-sent messages at least.
     height: var(--quote-img-size);
     width: var(--quote-img-size);
+    // For some reason the image element can get shrunk
+    // while it's being loaded.
+    // This, however, is not the case for images with no `src` at all,
+    // god knows why.
+    // See https://github.com/deltachat/deltachat-desktop/issues/4404#issuecomment-2602438175
+    flex-shrink: 0;
+
     object-fit: scale-down;
     object-position: center;
 
-    margin-left: 6px;
+    margin-inline-start: 6px;
   }
 
   img.quoted-webxdc-icon {
+    // The dimensions need to be fixed, same as for `.quoted-image`.
     height: var(--quote-img-size);
     width: var(--quote-img-size);
-    margin-left: 6px;
+    flex-shrink: 0;
+
+    margin-inline-start: 6px;
     border-radius: 7%;
   }
 }
@@ -525,11 +646,10 @@
 .msg-body > .text {
   a {
     text-decoration: underline;
-    color: var(--messageTextLink);
   }
 }
 
-/* This is for making links in quoted texts unclickable and 
+/* This is for making links in quoted texts unclickable and
    have an appereance like the rest of text in there */
 .quoted-text > a {
   pointer-events: none;
@@ -542,7 +662,7 @@
     display: none;
   }
   .author {
-    @include button-reset;
+    @include mixins.button-reset;
 
     display: inline-block;
     max-width: 40vw;
@@ -555,70 +675,5 @@
     white-space: nowrap;
     text-overflow: ellipsis;
     cursor: pointer;
-  }
-}
-.videochat-invitation {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-
-  .videochat-icon {
-    height: 48px;
-    width: 48px;
-    background-color: var(--infoMessageBubbleBg);
-    border-radius: 100%;
-    margin: 8px 0px;
-    margin-right: 10px;
-  }
-  .break {
-    flex-basis: 100%;
-    height: 0;
-  }
-
-  .info-button {
-    display: flex;
-
-    flex-wrap: wrap;
-    flex-direction: column;
-    align-items: center;
-
-    padding: 7px 14px;
-
-    background-color: var(--infoMessageBubbleBg);
-    opacity: 0.9;
-    color: white;
-    border-radius: 10px;
-
-    cursor: pointer;
-    .join-button {
-      @include button-reset;
-
-      font-weight: 100;
-      margin-top: 5px;
-    }
-  }
-
-  .meta-data-container {
-    background-color: var(--infoMessageBubbleBg);
-    opacity: 0.9;
-    color: white;
-    border-radius: 0px 0px 10px 10px;
-    padding: 4px 11px;
-
-    .metadata {
-      margin: 0;
-
-      & > .padlock-icon {
-        @include color-svg('./images/padlock.svg', white, 125%);
-      }
-
-      & > .location-icon {
-        @include color-svg('./images/map-marker.svg', white, 100%);
-      }
-
-      & > .date {
-        color: white;
-      }
-    }
   }
 }

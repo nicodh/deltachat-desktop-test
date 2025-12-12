@@ -5,6 +5,7 @@ export async function updateDeviceChat(
   accountId: number,
   skipCurrentChangelog: boolean = false
 ) {
+  const tx = window.static_translate
   const addDeviceMessage = async (
     label: string,
     msg: Partial<Parameters<typeof BackendRemote.rpc.addDeviceMessage>[2]>
@@ -17,6 +18,7 @@ export async function updateDeviceChat(
         html: null,
         viewtype: null,
         file: null,
+        filename: null,
         location: null,
         overrideSenderName: null,
         quotedMessageId: null,
@@ -25,17 +27,8 @@ export async function updateDeviceChat(
       })
     }
   }
-
-  await addDeviceMessage('changelog-version-1.50.0', {
-    text: `What's new in 1.50.0?
-
-🎹 Improved keyboard navigation
-📤 Select and send multiple files at once
-🎮 Enhanced in-chat apps: Get notifications and open supporting apps in context, i.e. open an added calendar entry directly
-🚀 In-chat apps can be really fast now, thanks to the "realtime" support
-📋 Add private tags for accounts
-
-MORE ✨ improvements and 🐜 bug fixes see [Full Changelog](https://github.com/deltachat/deltachat-desktop/blob/main/CHANGELOG.md#1_50_0)`,
+  await addDeviceMessage(`changelog-version-2.3.0`, {
+    text: tx('update_2_0', 'https://delta.chat/donate'),
   })
 }
 

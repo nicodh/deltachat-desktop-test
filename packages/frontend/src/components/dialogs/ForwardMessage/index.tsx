@@ -28,7 +28,7 @@ export default function ForwardMessage(props: ForwardMessageProps) {
   const { forwardMessage, jumpToMessage } = useMessage()
 
   const onChatClick = async (chatId: number) => {
-    const chat = await BackendRemote.rpc.getFullChatById(accountId, chatId)
+    const chat = await BackendRemote.rpc.getBasicChatInfo(accountId, chatId)
     onClose()
     if (!chat.isSelfTalk) {
       // show the target chat to avoid unintended forwarding to the wrong chat
@@ -50,7 +50,12 @@ export default function ForwardMessage(props: ForwardMessageProps) {
         )
         const lastMessage = messageIds[messageIds.length - 1]
         if (lastMessage) {
-          jumpToMessage({ accountId, msgId: lastMessage, msgChatId: chatId })
+          jumpToMessage({
+            accountId,
+            msgId: lastMessage,
+            msgChatId: chatId,
+            focus: false,
+          })
         }
       } else {
         selectChat(accountId, message.chatId)

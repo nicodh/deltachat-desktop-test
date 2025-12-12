@@ -10,6 +10,10 @@ import AccountNotificationStoreInstance, {
 import { selectedAccountId } from '../../ScreenController'
 import SettingsSwitch from './SettingsSwitch'
 import SettingsHeading from './SettingsHeading'
+import SettingsSelector from './SettingsSelector'
+import SmallSelectDialog from '../SmallSelectDialog'
+import SettingsStoreInstance from '../../stores/settings'
+import useDialog from '../../hooks/dialog/useDialog'
 
 type Props = {
   desktopSettings: DesktopSettingsType
@@ -17,13 +21,51 @@ type Props = {
 
 export default function Notifications({ desktopSettings }: Props) {
   const tx = useTranslationFunction()
+  const accountId = selectedAccountId()
+  const { accounts } = useAccountNotificationStore()[0]!
+  const isMuted = accounts[accountId]?.muted || false
+
+  const inChatSoundsVolumeOptions: Parameters<
+    typeof SmallSelectDialog
+  >[0]['values'] = [
+    ['0', tx('muted')],
+    ['0.1', '10%'],
+    ['0.2', '20%'],
+    ['0.3', '30%'],
+    ['0.4', '40%'],
+    ['0.5', '50%'],
+    ['0.6', '60%'],
+    ['0.7', '70%'],
+    ['0.8', '80%'],
+    ['0.9', '90%'],
+    ['1', '100%'],
+  ]
+  const volumeNumberToString = (volume: number) => {
+    if (volume === 0) {
+      return tx('muted')
+    }
+    return volume * 100 + '%'
+  }
+
+  const { openDialog } = useDialog()
+  const onOpenInChatSoundsVolumeDialog = async () => {
+    openDialog(SmallSelectDialog, {
+      values: inChatSoundsVolumeOptions,
+      initialSelectedValue: desktopSettings.inChatSoundsVolume.toString(10),
+      title: tx('pref_in_chat_sounds'),
+      onSave: async (volume_: string) => {
+        const volume = Number(volume_)
+        SettingsStoreInstance.effect.setDesktopSetting(
+          'inChatSoundsVolume',
+          volume
+        )
+      },
+    })
+  }
 
   return (
     <>
-      <SettingsHeading>{tx('pref_current_account')}</SettingsHeading>
-      <AccountNotificationMutedSwitch label={tx('menu_mute')} />
-      <SettingsSeparator></SettingsSeparator>
-      <SettingsHeading>{tx('pref_all_accounts')}</SettingsHeading>
+      <SettingsHeading>{tx('all_profiles')}</SettingsHeading>
       <DesktopSettingsSwitch
         settingsKey='notifications'
         label={tx('pref_notifications_explain')}
@@ -33,29 +75,29 @@ export default function Notifications({ desktopSettings }: Props) {
         label={tx('pref_show_notification_content_explain')}
         disabled={!desktopSettings['notifications']}
       />
+      <SettingsSelector
+        onClick={onOpenInChatSoundsVolumeDialog.bind(null)}
+        currentValue={volumeNumberToString(desktopSettings.inChatSoundsVolume)}
+      >
+        {tx('pref_in_chat_sounds')}
+      </SettingsSelector>
+      <SettingsSeparator></SettingsSeparator>
+      <SettingsHeading>{tx('current_profile')}</SettingsHeading>
+      <SettingsSwitch
+        label={tx('menu_mute')}
+        value={isMuted}
+        disabled={!desktopSettings['notifications']}
+        onChange={() => {
+          AccountNotificationStoreInstance.effect.setMuted(accountId, !isMuted)
+        }}
+      />
+      <DesktopSettingsSwitch
+        settingsKey='isMentionsEnabled'
+        label={tx('pref_mention_notifications')}
+        description={tx('pref_mention_notifications_explain')}
+        disabled={isMuted || !desktopSettings['notifications']}
+        disabledValue={false}
+      />
     </>
-  )
-}
-
-function AccountNotificationMutedSwitch({
-  label,
-  description,
-}: {
-  label: string
-  description?: string
-}) {
-  const accountId = selectedAccountId()
-  const { accounts } = useAccountNotificationStore()[0]!
-  const isMuted = accounts[accountId]?.muted || false
-
-  return (
-    <SettingsSwitch
-      label={label}
-      value={isMuted}
-      description={description}
-      onChange={() => {
-        AccountNotificationStoreInstance.effect.setMuted(accountId, !isMuted)
-      }}
-    />
   )
 }

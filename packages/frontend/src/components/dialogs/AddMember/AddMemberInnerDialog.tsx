@@ -1,6 +1,7 @@
 import React, {
   ChangeEvent,
   useCallback,
+  useContext,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -15,14 +16,12 @@ import { ContactListItem } from '../../contact/ContactListItem'
 import { BackendRemote, onDCEvent, Type } from '../../../backend-com'
 import { selectedAccountId } from '../../../ScreenController'
 import { DialogBody, DialogHeader, OkCancelFooterAction } from '../../Dialog'
-import useDialog from '../../../hooks/dialog/useDialog'
-import useTranslationFunction from '../../../hooks/useTranslationFunction'
-import { VerifiedContactsRequiredDialog } from '../ProtectionStatusDialog'
 import InfiniteLoader from 'react-window-infinite-loader'
 import { AddMemberChip } from './AddMemberDialog'
 import styles from './styles.module.scss'
 import classNames from 'classnames'
 import { RovingTabindexProvider } from '../../../contexts/RovingTabindex'
+import { I18nContext } from '../../../contexts/I18nContext'
 
 export function AddMemberInnerDialog({
   onCancel,
@@ -33,12 +32,13 @@ export function AddMemberInnerDialog({
 
   contactIds,
   contactCache,
+  isContactLoaded,
   loadContacts,
   refreshContacts,
 
   groupMembers,
-  isBroadcast = false,
-  isVerificationRequired = false,
+  titleMembersOrRecipients,
+  allowAddManually,
 }: {
   onOk: (addMembers: number[]) => void
   onCancel: Parameters<typeof OkCancelFooterAction>[0]['onCancel']
@@ -48,15 +48,15 @@ export function AddMemberInnerDialog({
 
   contactIds: number[]
   contactCache: { [id: number]: T.Contact | undefined }
+  isContactLoaded: (index: number) => boolean
   loadContacts: (startIndex: number, stopIndex: number) => Promise<void>
   refreshContacts: () => void
 
   groupMembers: number[]
-  isBroadcast: boolean
-  isVerificationRequired: boolean
+  titleMembersOrRecipients: 'members' | 'recipients'
+  allowAddManually: boolean
 }) {
-  const tx = useTranslationFunction()
-  const { openDialog } = useDialog()
+  const { tx, writingDirection } = useContext(I18nContext)
   const accountId = selectedAccountId()
   const contactIdsInGroup: number[] = contactIds.filter(contactId =>
     groupMembers.includes(contactId)
@@ -77,14 +77,9 @@ export function AddMemberInnerDialog({
 
   const addMember = useCallback(
     (contact: Type.Contact) => {
-      if (isVerificationRequired && !contact.isVerified) {
-        openDialog(VerifiedContactsRequiredDialog)
-        return
-      }
-
       setContactIdsToAdd([...contactIdsToAdd, contact])
     },
-    [contactIdsToAdd, isVerificationRequired, openDialog]
+    [contactIdsToAdd]
   )
 
   const removeMember = useCallback(
@@ -143,8 +138,10 @@ export function AddMemberInnerDialog({
   const applyCSSHacks = () => {
     setTimeout(() => inputRef.current?.focus(), 0)
 
-    const offsetHeight = document.querySelector('.AddMemberChipsWrapper') //@ts-ignore
-      ?.offsetHeight
+    const el = document.querySelector(
+      '.AddMemberChipsWrapper'
+    ) as HTMLElement | null
+    const offsetHeight = el?.offsetHeight
     if (!offsetHeight) return
     contactListRef.current?.style.setProperty(
       'max-height',
@@ -155,17 +152,22 @@ export function AddMemberInnerDialog({
   useLayoutEffect(applyCSSHacks, [inputRef, contactIdsToAdd])
   useEffect(applyCSSHacks, [])
 
-  const needToRenderAddContact = queryStr !== '' && contactIds.length === 0
-  const itemCount = contactIds.length + (needToRenderAddContact ? 1 : 0)
+  const showAddContactManually =
+    queryStr !== '' && contactIds.length === 0 && allowAddManually
+  const itemCount = contactIds.length + (showAddContactManually ? 1 : 0)
 
   const addContactOnKeyDown = (ev: React.KeyboardEvent<HTMLInputElement>) => {
-    if (ev.code == 'Enter') {
+    if (ev.key === 'Enter') {
       // TODO refactor: this is fragile.
       ;(
         contactListRef.current?.querySelector(
           'input[type="checkbox"]'
         ) as HTMLDivElement
       ).click()
+    } else if (ev.code === 'ArrowDown') {
+      ;(contactListRef.current?.querySelector('button') as HTMLElement)?.focus()
+      // prevent scrolling down the list
+      ev.preventDefault()
     }
   }
 
@@ -186,7 +188,11 @@ export function AddMemberInnerDialog({
   return (
     <>
       <DialogHeader
-        title={!isBroadcast ? tx('group_add_members') : tx('add_recipients')}
+        title={
+          titleMembersOrRecipients === 'members'
+            ? tx('group_add_members')
+            : tx('add_recipients')
+        }
       />
       <DialogBody className={styles.addMemberDialogBody}>
         <div className={styles.AddMemberChipsWrapper}>
@@ -211,6 +217,7 @@ export function AddMemberInnerDialog({
               placeholder={tx('search')}
               autoFocus
               spellCheck={false}
+              data-testid='add-member-search'
             />
           </div>
         </div>
@@ -225,14 +232,9 @@ export function AddMemberInnerDialog({
                 // with wrong indices.
                 // See `CreateChatMain` component.
                 loadMoreItems={loadContacts}
-                // perf: consider using `isContactLoaded` from `useLazyLoadedContacts`
-                // otherwise sometimes we might load the same contact twice (performance thing)
-                // See https://github.com/bvaughn/react-window/issues/765
                 isItemLoaded={index => {
                   const isExtraItem = index >= contactIds.length
-                  return isExtraItem
-                    ? true
-                    : contactCache[contactIds[index]] != undefined
+                  return isExtraItem ? true : isContactLoaded(index)
                 }}
                 // minimumBatchSize={100}
               >
@@ -242,6 +244,8 @@ export function AddMemberInnerDialog({
                     if the user has 5000 contacts.
                     (see https://github.com/deltachat/deltachat-desktop/issues/1830) */}
                     <FixedSizeList
+                      innerElementType={'ol'}
+                      className='react-window-list-reset'
                       itemData={{
                         contactIds,
                         contactIdsInGroup,
@@ -258,6 +262,7 @@ export function AddMemberInnerDialog({
                         return isExtraItem ? 'addContact' : contactIds[index]
                       }}
                       onItemsRendered={onItemsRendered}
+                      direction={writingDirection}
                       ref={ref}
                       height={height}
                       width='100%'
@@ -337,26 +342,31 @@ function AddMemberInnerDialogRow({
         isVerified: false,
         verifierId: null,
         wasSeenRecently: false,
-        isProfileVerified: false,
         isBot: false,
         e2eeAvail: false,
+        isKeyContact: false,
       }
       return (
         <ContactListItem
+          tagName='li'
+          style={style}
           contact={pseudoContact}
           showCheckbox={true}
           checked={false}
           showRemove={false}
           onCheckboxClick={onCreateContactCheckboxClick}
+          data-testid='add-pseudo-contact'
         />
       )
     } else {
       return (
-        <PseudoListItemAddContact
-          queryStr={queryStr}
-          queryStrIsEmail={false}
-          onClick={undefined}
-        />
+        <li style={style}>
+          <PseudoListItemAddContact
+            queryStr={queryStr}
+            queryStrIsEmail={false}
+            onClick={undefined}
+          />
+        </li>
       )
     }
   }
@@ -368,25 +378,25 @@ function AddMemberInnerDialogRow({
   const contact = contactCache[contactIds[index]]
   if (!contact) {
     // Not loaded yet
-    return <div style={style}></div>
+    return <li style={style}></li>
   }
 
   return (
-    <div style={style}>
-      <ContactListItem
-        contact={contact}
-        showCheckbox
-        checked={
-          contactIdsToAdd.some(c => c.id === contact.id) ||
-          contactIdsInGroup.includes(contact.id)
-        }
-        disabled={
-          contactIdsInGroup.includes(contact.id) ||
-          contact.id === C.DC_CONTACT_ID_SELF
-        }
-        onCheckboxClick={onCheckboxClick}
-        showRemove={false}
-      />
-    </div>
+    <ContactListItem
+      tagName='li'
+      style={style}
+      contact={contact}
+      showCheckbox
+      checked={
+        contactIdsToAdd.some(c => c.id === contact.id) ||
+        contactIdsInGroup.includes(contact.id)
+      }
+      disabled={
+        contactIdsInGroup.includes(contact.id) ||
+        contact.id === C.DC_CONTACT_ID_SELF
+      }
+      onCheckboxClick={onCheckboxClick}
+      showRemove={false}
+    />
   )
 }

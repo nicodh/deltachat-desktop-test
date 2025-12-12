@@ -45,11 +45,11 @@ export default function ConfirmationDialog({
   }
 
   return (
-    <Dialog onClose={handleClose} data-testid={dataTestid}>
+    <Dialog onClose={handleClose} dataTestid={dataTestid}>
       {header && <DialogHeader title={header} />}
       <DialogBody>
         <DialogContent paddingTop={header === undefined}>
-          <p>{message}</p>
+          <p className='whitespace'>{message}</p>
         </DialogContent>
       </DialogBody>
       <DialogFooter>
@@ -61,7 +61,7 @@ export default function ConfirmationDialog({
             {cancelLabel || tx('cancel')}
           </FooterActionButton>
           <FooterActionButton
-            styling={isConfirmDanger ? 'danger' : undefined}
+            styling={isConfirmDanger ? 'danger' : 'primary'}
             onClick={() => handleClick(true)}
             data-testid='confirm'
           >

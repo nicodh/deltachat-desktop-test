@@ -1,35 +1,26 @@
-import React, { useState } from 'react'
-import Button from './Button'
-import Icon from './Icon'
-import useTranslationFunction from '../hooks/useTranslationFunction'
+import React, { ReactElement, useId } from 'react'
 
 export const DeltaSelect = React.memo(
   (
     props: React.PropsWithChildren<{
       label: string
-      id: any
+      id?: string
       value: any
       onChange: (ev: React.ChangeEvent<HTMLSelectElement>) => void
     }>
   ) => {
-    const [isFocused, setIsFocused] = useState(false)
-
-    const onFocus = () => setIsFocused(true)
-    const onBlur = () => setIsFocused(false)
+    const defaultId = useId()
+    const id = props.id ?? `delta-select-${defaultId}`
 
     return (
       <div className='delta-form-group delta-select'>
-        <label htmlFor={props.id} className={`${isFocused && 'focus'}`}>
-          {props.label}
-        </label>
+        <label htmlFor={id}>{props.label}</label>
         <div className='delta-select-inner'>
           <select
-            name={props.id}
-            id={props.id}
+            name={id}
+            id={id}
             value={props.value === null ? '' : props.value}
             onChange={props.onChange}
-            onFocus={onFocus}
-            onBlur={onBlur}
           >
             {props.children}
           </select>
@@ -53,20 +44,16 @@ export const DeltaTextarea = React.memo(
       ) => void
     }>
   ) => {
-    const [isFocused, setIsFocused] = useState(false)
+    const defaultId = useId()
+    const id = props.id ?? `delta-textarea-${defaultId}`
 
-    const onFocus = () => setIsFocused(true)
-    const onBlur = () => setIsFocused(false)
-    const showLabel =
-      isFocused ||
-      props.value?.length > 0 ||
-      (props.label !== undefined && props.label.length > 0)
+    const alwaysShowLabel = (props.label?.length ?? 0) > 0
 
     return (
       <div className='delta-form-group delta-textarea'>
         <label
-          className={`${isFocused && 'focus'}`}
-          style={{ visibility: !showLabel ? 'hidden' : 'visible' }}
+          htmlFor={id}
+          className={alwaysShowLabel ? 'alwaysShow' : undefined}
         >
           {props.label && props.label.length > 0
             ? props.label
@@ -75,12 +62,11 @@ export const DeltaTextarea = React.memo(
         <textarea
           onChange={props.onChange}
           value={props.value}
-          id={props.id}
+          id={id}
           disabled={props.disabled}
-          placeholder={!isFocused ? props.placeholder : ''}
-          onFocus={onFocus}
-          onBlur={onBlur}
+          placeholder={props.placeholder}
           rows={5}
+          className={(props.value?.length ?? 0) === 0 ? 'isEmpty' : undefined}
         />
       </div>
     )
@@ -97,7 +83,7 @@ export const DeltaInput = React.memo(
       type?: string
       min?: string
       max?: string
-      rightElement?: JSX.Element
+      rightElement?: ReactElement
       disabled?: boolean
       autoFocus?: boolean
       onChange: (
@@ -107,32 +93,26 @@ export const DeltaInput = React.memo(
       onBlur?: (
         event: React.FormEvent<HTMLElement> & React.FocusEvent<HTMLInputElement>
       ) => void
+      dataTestId?: string
     }>
   ) => {
-    const [isFocused, setIsFocused] = useState(false)
+    const defaultId = useId()
+    const id = props.id ?? `delta-input-${defaultId}`
 
-    const onFocus = () => setIsFocused(true)
-    const onBlur = (event: React.FocusEvent<HTMLInputElement>) => {
-      setIsFocused(false)
-      if (props.onBlur) props.onBlur(event)
-    }
-    const showLabel =
-      isFocused ||
-      props.value?.length > 0 ||
-      (props.label !== undefined && props.label.length > 0)
+    const alwaysShowLabel = (props.label?.length ?? 0) > 0
 
     return (
       <div className='delta-form-group delta-input'>
         <label
-          className={`${isFocused && 'focus'}`}
-          style={{ visibility: !showLabel ? 'hidden' : 'visible' }}
+          htmlFor={id}
+          className={alwaysShowLabel ? 'alwaysShow' : undefined}
         >
           {props.label && props.label.length > 0
             ? props.label
             : props.placeholder}
         </label>
         <input
-          id={props.id}
+          id={id}
           type={props.type}
           value={props.value === null ? '' : props.value}
           onChange={props.onChange}
@@ -140,59 +120,15 @@ export const DeltaInput = React.memo(
           min={props.min}
           max={props.max}
           disabled={props.disabled}
-          onFocus={onFocus}
-          onBlur={onBlur}
+          onBlur={props.onBlur}
           autoFocus={props.autoFocus}
+          className={(props.value?.length ?? 0) === 0 ? 'isEmpty' : undefined}
+          data-testid={props.dataTestId}
         />
         {props.rightElement && (
           <div className='right-element'>{props.rightElement}</div>
         )}
       </div>
-    )
-  }
-)
-
-export const DeltaPasswordInput = React.memo(
-  (
-    props: React.PropsWithChildren<{
-      password: string
-      id?: string
-      label?: string
-      placeholder?: string
-      onChange: (
-        event: React.FormEvent<HTMLElement> &
-          React.ChangeEvent<HTMLInputElement>
-      ) => void
-    }>
-  ) => {
-    const tx = useTranslationFunction()
-
-    const [showPassword, setShowPassword] = useState(false)
-
-    const password = props.password || ''
-
-    const rightElement = (
-      <Button
-        onClick={() => setShowPassword(!showPassword)}
-        aria-label={showPassword ? tx('hide_password') : tx('show_password')}
-      >
-        <Icon
-          coloring='contextMenu'
-          size={16}
-          icon={showPassword ? 'eye-open' : 'eye-off'}
-        />
-      </Button>
-    )
-    return (
-      <DeltaInput
-        id={props.id}
-        type={showPassword ? 'text' : 'password'}
-        label={props.label ? props.label : ''}
-        value={password === null ? '' : password}
-        onChange={props.onChange}
-        placeholder={props.placeholder}
-        rightElement={rightElement}
-      />
     )
   }
 )

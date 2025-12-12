@@ -1,89 +1,90 @@
 import React from 'react'
 
 import SettingsStoreInstance, {
-  SettingsStoreState,
   useSettingsStore,
+  type SettingsStoreState,
 } from '../../stores/settings'
-import SettingsSelector from './SettingsSelector'
 import DesktopSettingsSwitch from './DesktopSettingsSwitch'
-import CoreSettingsSwitch from './CoreSettingsSwitch'
-import EditVideochatInstanceDialog from '../dialogs/EditVideochatInstanceDialog'
-import {
-  VIDEO_CHAT_INSTANCE_AUTISTICI,
-  VIDEO_CHAT_INSTANCE_SYSTEMLI,
-} from '../../../../shared/constants'
 import useTranslationFunction from '../../hooks/useTranslationFunction'
-import useDialog from '../../hooks/dialog/useDialog'
 import SettingsSwitch from './SettingsSwitch'
 import { runtime } from '@deltachat-desktop/runtime-interface'
+import useDialog from '../../hooks/dialog/useDialog'
+import AlertDialog from '../dialogs/AlertDialog'
 
-type Props = {
-  settingsStore: SettingsStoreState
-}
-
-export function ExperimentalFeatures({ settingsStore }: Props) {
+export function ExperimentalFeatures() {
   const tx = useTranslationFunction()
   const { openDialog } = useDialog()
 
-  const onClickEdit = async () => {
-    openDialog(EditVideochatInstanceDialog, {
-      onOk: async (configValue: string) => {
-        SettingsStoreInstance.effect.setCoreSetting(
-          'webrtc_instance',
-          configValue
-        )
-        if (configValue === '') {
-          SettingsStoreInstance.effect.setDesktopSetting('enableAVCalls', false)
-        } else {
-          SettingsStoreInstance.effect.setDesktopSetting('enableAVCalls', true)
-        }
-      },
-      settingsStore,
-    })
-  }
-
-  const showVideochatInstance = (instance: string) => {
-    if (instance === '') {
-      return tx('off')
-    } else if (instance === VIDEO_CHAT_INSTANCE_SYSTEMLI) {
-      return 'Systemli'
-    } else if (instance === VIDEO_CHAT_INSTANCE_AUTISTICI) {
-      return 'Autistici'
+  const showExperimentalInfoDialog = async (
+    settingsKey: keyof Pick<
+      SettingsStoreState['desktopSettings'],
+      | 'enableAVCallsV2'
+      | 'enableBroadcastLists'
+      | 'enableOnDemandLocationStreaming'
+    >,
+    updatedValue: boolean
+  ) => {
+    if (!updatedValue) {
+      return
     }
-    return instance
+    let message: string
+    // The strings are copy-pasted from
+    // https://github.com/deltachat/deltachat-android/blob/2385b236c7ed9eb0e26ef819d8274936877b7023/src/main/java/org/thoughtcrime/securesms/preferences/AdvancedPreferenceFragment.java
+
+    switch (settingsKey) {
+      case 'enableAVCallsV2':
+        message =
+          'Thanks for helping to debug "Calls"!\n\n' +
+          '• You can now debug calls using the "phone" icon in one-to-one-chats' +
+          "\n\n• The experiment is about making decentralised calls work and reliable at all, not about options or UI. We're happy about focused feedback at support.delta.chat"
+        break
+      case 'enableBroadcastLists':
+        message =
+          'Thanks for trying out "Channels"!\n\n' +
+          '• You can now create "Channels" from the "New Chat" dialog'
+        break
+      case 'enableOnDemandLocationStreaming':
+        message =
+          'Thanks for trying out "On-Demand Location Streaming"\n\n' +
+          '• If enabled you will find a map icon above the message list, which opens a map with shared locations of your contacts' +
+          '\n\n• Sharing your own location is only available in mobile clients'
+        break
+    }
+
+    message +=
+      '\n\n• If you want to quit the experimental feature, you can disable it at "Settings / Advanced"'
+    openDialog(AlertDialog, {
+      message,
+      confirmLabel: tx('ok'),
+    })
   }
 
   return (
     <>
-      <SettingsSelector
-        onClick={onClickEdit.bind(null)}
-        currentValue={showVideochatInstance(
-          settingsStore.settings['webrtc_instance']
-        )}
-      >
-        {tx('videochat')}
-      </SettingsSelector>
+      {runtime.getRuntimeInfo().target === 'electron' && (
+        <DesktopSettingsSwitch
+          settingsKey='enableAVCallsV2'
+          label={'Debug Calls'}
+          description='Work in progress…'
+          callback={value =>
+            showExperimentalInfoDialog('enableAVCallsV2', value)
+          }
+        />
+      )}
       <DesktopSettingsSwitch
         settingsKey='enableBroadcastLists'
-        label={tx('broadcast_lists')}
-        description={tx('chat_new_broadcast_hint')}
+        label={tx('channels')}
+        description={tx('chat_new_channel_hint')}
+        callback={value =>
+          showExperimentalInfoDialog('enableBroadcastLists', value)
+        }
       />
       <DesktopSettingsSwitch
         settingsKey='enableOnDemandLocationStreaming'
         label={tx('pref_on_demand_location_streaming')}
-      />
-      <DesktopSettingsSwitch
-        settingsKey='enableChatAuditLog'
-        label={tx('menu_chat_audit_log')}
-        description={tx('chat_audit_log_description')}
-      />
-      <DesktopSettingsSwitch
-        settingsKey='enableRelatedChats'
-        label={tx('related_chats')}
-      />
-      <DesktopSettingsSwitch
-        settingsKey='experimentalEnableMarkdownInMessages'
-        label='Render Markdown in Messages'
+        callback={value =>
+          showExperimentalInfoDialog('enableOnDemandLocationStreaming', value)
+        }
       />
       {runtime.getRuntimeInfo().isContentProtectionSupported && (
         <DesktopSettingsSwitch
@@ -92,11 +93,6 @@ export function ExperimentalFeatures({ settingsStore }: Props) {
           description={tx('pref_screen_security_explain')}
         />
       )}
-      <CoreSettingsSwitch
-        label={tx('disable_imap_idle')}
-        settingsKey='disable_idle'
-        description={tx('disable_imap_idle_explain')}
-      />
       <SyncAllAccountsSwitch />
       <DesktopSettingsSwitch
         settingsKey='enableWebxdcDevTools'
@@ -116,14 +112,18 @@ export function ExperimentalFeatures({ settingsStore }: Props) {
 
 export default function SyncAllAccountsSwitch() {
   const tx = useTranslationFunction()
-  const settingsStore = useSettingsStore()[0]!
+  const settingsStore = useSettingsStore()[0]
 
   return (
     <SettingsSwitch
       label={tx('pref_background_sync_disabled')}
       description={tx('explain_background_sync_disabled')}
-      value={settingsStore.desktopSettings.syncAllAccounts !== true}
+      value={settingsStore?.desktopSettings.syncAllAccounts !== true}
+      disabled={settingsStore == null}
       onChange={() => {
+        if (settingsStore == null) {
+          return
+        }
         SettingsStoreInstance.effect.setDesktopSetting(
           'syncAllAccounts',
           !settingsStore.desktopSettings.syncAllAccounts

@@ -1,4 +1,4 @@
-import { useCallback, useContext } from 'react'
+import { useCallback } from 'react'
 
 import CopyContentAlertDialog from '../components/CopyContentAlertDialog'
 import useAlertDialog from './dialog/useAlertDialog'
@@ -10,26 +10,84 @@ import useSecureJoin from './useSecureJoin'
 import useTranslationFunction from './useTranslationFunction'
 import { BackendRemote } from '../backend-com'
 import { ReceiveBackupProgressDialog } from '../components/dialogs/SetupMultiDevice'
-import { ScreenContext } from '../contexts/ScreenContext'
 import { getLogger } from '../../../shared/logger'
-import { processQr } from '../backend/qr'
+import { processQr, QrWithUrl } from '../backend/qr'
 
 import type { T } from '@deltachat/jsonrpc-client'
-import type { QrWithUrl } from '../backend/qr'
 import type { WelcomeQrWithUrl } from '../contexts/InstantOnboardingContext'
+import type { TranslationKey } from '../../../shared/translationKeyType'
 import useChat from './chat/useChat'
+import { unknownErrorToString } from '../components/helpers/unknownErrorToString'
+import ProxyConfiguration from '../components/dialogs/ProxyConfiguration'
+import { useSettingsStore } from '../stores/settings'
+import TransportsDialog, {
+  addTransportConfirmationDialog,
+} from '../components/dialogs/Transports'
 
 const ALLOWED_QR_CODES_ON_WELCOME_SCREEN: T.Qr['kind'][] = [
   'account',
   'askVerifyContact',
   'askVerifyGroup',
+  'askJoinBroadcast',
   'backup2',
   'login',
   'text',
   'url',
 ]
 
+export const enum SCAN_CONTEXT_TYPE {
+  /** default context, no restrictions on QR code types */
+  DEFAULT = 'DEFAULT',
+  /** onboarding with another server than the default server or contact/group invite code */
+  OTHER_SERVER = 'OTHER_SERVER',
+  /** for multi-device setup */
+  TRANSFER_BACKUP = 'TRANSFER_BACKUP',
+}
+
 const log = getLogger('renderer/hooks/useProcessQr')
+
+type WithdrawOrReviveQrKinds = Extract<
+  T.Qr['kind'],
+  `withdraw${string}` | `revive${string}`
+>
+type WithdrawOrReviveConfigs_ = {
+  [P in WithdrawOrReviveQrKinds]: {
+    messageKey: TranslationKey
+    getMessageArgs?: (qr: any) => string[]
+    dataTestid?: string
+  }
+}
+// Allow indexing into with `string` type.
+type WithdrawOrReviveConfigs = WithdrawOrReviveConfigs_ & {
+  [key: string]:
+    | undefined
+    | WithdrawOrReviveConfigs_[keyof WithdrawOrReviveConfigs_]
+}
+
+const WITHDRAW_OR_REVIVE_CONFIGS: WithdrawOrReviveConfigs = {
+  withdrawVerifyContact: {
+    messageKey: 'withdraw_verifycontact_explain',
+  },
+  reviveVerifyContact: {
+    messageKey: 'revive_verifycontact_explain',
+  },
+  withdrawVerifyGroup: {
+    messageKey: 'withdraw_verifygroup_explain',
+    getMessageArgs: qr => [qr.grpname],
+    dataTestid: 'withdraw-verify-group',
+  },
+  reviveVerifyGroup: {
+    messageKey: 'revive_verifycontact_explain',
+  },
+  withdrawJoinBroadcast: {
+    messageKey: 'withdraw_joinbroadcast_explain',
+    getMessageArgs: qr => [qr.name],
+    dataTestid: 'withdraw-verify-channel',
+  },
+  reviveJoinBroadcast: {
+    messageKey: 'revive_verifycontact_explain',
+  },
+} satisfies WithdrawOrReviveConfigs_
 
 /**
  * Processes an unchecked string which was scanned from a QR code.
@@ -43,34 +101,41 @@ const log = getLogger('renderer/hooks/useProcessQr')
  */
 export default function useProcessQR() {
   const tx = useTranslationFunction()
-  const { addAndSelectAccount } = useContext(ScreenContext)
   const { openDialog } = useDialog()
   const openAlertDialog = useAlertDialog()
   const openConfirmationDialog = useConfirmationDialog()
 
   const openMailtoLink = useOpenMailtoLink()
   const { startInstantOnboardingFlow } = useInstantOnboarding()
-  const { secureJoinGroup, secureJoinContact } = useSecureJoin()
+  const { secureJoin } = useSecureJoin()
 
+  const settingsStore = useSettingsStore()[0]
+  const isChatmail = settingsStore?.settings.is_chatmail === '1'
   const { selectChat } = useChat()
 
-  const setConfigFromQrCatchingErrorInAlert = useCallback(
+  /**
+   * Processes various QR codes
+   * catched errors will be shown in an alert dialog
+   */
+  const processQrCode = useCallback(
     async (accountId: number, qrContent: string) => {
       try {
         await BackendRemote.rpc.setConfigFromQr(accountId, qrContent)
       } catch (error) {
-        if (error instanceof Error) {
-          openAlertDialog({
-            message: error.message,
-          })
-        }
+        openAlertDialog({
+          message: unknownErrorToString(error),
+        })
       }
     },
     [openAlertDialog]
   )
 
-  // Users can enter the "Instant Onboarding" flow by scanning a DCACCOUNT, DCLOGIN
-  // DC_ASK_VERIFYGROUP, or DC_ASK_VERIFYCONTACT code which essentially creates
+  // Users can enter the "Instant Onboarding" flow by scanning a QR code of these types:
+  // DCACCOUNT (new transport from the included chatmail instance)
+  // DCLOGIN ()
+  // DC_ASK_VERIFYGROUP
+  // DC_ASK_VERIFYCONTACT
+  // which essentially creates
   // a new "chatmail" profile for them and connects them with the regarding
   // contact or group if given.
   //
@@ -91,6 +156,7 @@ export default function useProcessQR() {
         const userConfirmed = await openConfirmationDialog({
           message: tx('instant_onboarding_confirm_group', qr.grpname),
           confirmLabel: tx('ok'),
+          dataTestid: 'ask-join-group',
         })
 
         if (!userConfirmed) {
@@ -107,9 +173,20 @@ export default function useProcessQR() {
         const userConfirmed = await openConfirmationDialog({
           message: tx(
             'instant_onboarding_confirm_contact',
-            contact.nameAndAddr
+            contact.displayName
           ),
           confirmLabel: tx('ok'),
+          dataTestid: 'ask-create-profile-and-join-chat',
+        })
+
+        if (!userConfirmed) {
+          return
+        }
+      } else if (qr.kind === 'askJoinBroadcast') {
+        const userConfirmed = await openConfirmationDialog({
+          message: tx('instant_onboarding_confirm_channel', qr.name),
+          confirmLabel: tx('ok'),
+          dataTestid: 'ask-create-profile-and-join-channel',
         })
 
         if (!userConfirmed) {
@@ -122,14 +199,16 @@ export default function useProcessQR() {
     [openConfirmationDialog, startInstantOnboardingFlow, tx]
   )
 
-  return useCallback(
-    async (accountId: number, url: string, callback?: () => void) => {
-      // Scanned string is actually a link to an email address
-      if (url.toLowerCase().startsWith('mailto:')) {
-        await openMailtoLink(accountId, url, callback)
-        return
-      }
+  const multiDeviceMode =
+    (settingsStore && settingsStore.settings['bcc_self'] === '1') ?? false
 
+  return useCallback(
+    async (
+      accountId: number,
+      url: string,
+      scanContext: SCAN_CONTEXT_TYPE,
+      callback?: () => void
+    ): Promise<void> => {
       // Check if given string is a valid DeltaChat URI-Scheme and return
       // parsed object, otherwise show an error to the user
       let parsed: QrWithUrl
@@ -140,12 +219,53 @@ export default function useProcessQR() {
 
         await openAlertDialog({
           message: tx('qrscan_failed') + '\n\n' + url,
+          dataTestid: 'qr-scan-failed',
         })
 
         return callback?.()
       }
 
       const { qr } = parsed
+
+      if (qr.kind === 'backupTooNew') {
+        await openAlertDialog({
+          message: tx('multidevice_receiver_needs_update'),
+          dataTestid: 'backup-too-new',
+        })
+        return callback?.()
+      }
+
+      if (
+        (scanContext === SCAN_CONTEXT_TYPE.TRANSFER_BACKUP &&
+          qr.kind !== 'backup2') ||
+        (scanContext === SCAN_CONTEXT_TYPE.OTHER_SERVER &&
+          ![
+            'account',
+            'login',
+            'askVerifyGroup',
+            'askVerifyContact',
+            'askJoinBroadcast',
+          ].includes(qr.kind))
+      ) {
+        await openAlertDialog({
+          message: tx('qraccount_qr_code_cannot_be_used'),
+          dataTestid: 'qr-code-cannot-be-used',
+        })
+        return callback?.()
+      }
+
+      // Scanned string is actually a link to an email address
+      if (url.toLowerCase().startsWith('mailto:')) {
+        if (isChatmail) {
+          // on chatmail server simple email can't be used
+          await openAlertDialog({
+            message: tx('invalid_unencrypted_explanation'),
+          })
+        } else {
+          await openMailtoLink(accountId, url)
+        }
+        return callback?.()
+      }
 
       // Some actions can only be executed when the user already has an account
       // and is logged in
@@ -155,27 +275,42 @@ export default function useProcessQR() {
         !isLoggedIn
       ) {
         await openAlertDialog({
-          message: tx('Please login first'),
+          message: tx('need_to_be_logged_in'),
+          dataTestid: 'need-to-be-logged-in',
         })
         return callback?.()
       }
-
-      // DCACCOUNT:
-      // configured account: Ask the user if they want to create a new profile on the given chatmail instance
-      // unconfigured account: set instant onboarding chatmail instance
-      if (qr.kind === 'account') {
+      /**
+       * DCACCOUNT:
+       * contains the url to a chatmail relay
+       * see https://github.com/deltachat/interface/blob/main/uri-schemes.md#DCACCOUNT
+       * or
+       *
+       * DCLOGIN
+       * complete login credentials for a relay or mail server
+       * see https://github.com/deltachat/interface/blob/main/uri-schemes.md#DCLOGIN
+       *
+       *
+       * Scenarios depending on the account status:
+       * 1. configured account: Ask the user if they want to add a new relay to the current profile
+       * 2. unconfigured account: set instant onboarding instance
+       *
+       */
+      if (qr.kind === 'account' || qr.kind === 'login') {
         if (isLoggedIn) {
-          const userConfirmed = await openConfirmationDialog({
-            message: tx('qraccount_ask_create_and_login_another', qr.domain),
-            confirmLabel: tx('login_title'),
-          })
-
-          if (!userConfirmed) {
-            return callback?.()
+          const confirmed = await addTransportConfirmationDialog(
+            qr.kind === 'account' ? qr.domain : qr.address,
+            multiDeviceMode,
+            openConfirmationDialog,
+            tx('confirm_add_transport')
+          )
+          if (!confirmed) {
+            return
           }
-
-          const new_accountId = await addAndSelectAccount()
-          await startInstantOnboarding(new_accountId, { ...parsed, qr })
+          await BackendRemote.rpc.addTransportFromQr(accountId, url)
+          openDialog(TransportsDialog, {
+            accountId,
+          })
         } else {
           await startInstantOnboarding(accountId, { ...parsed, qr })
         }
@@ -183,38 +318,30 @@ export default function useProcessQR() {
         return callback?.()
       }
 
-      // DCLOGIN:
-      // configured account: Ask the user if they want to login with given credentials
-      // unconfigured account: set instant onboarding credentials
-      if (qr.kind === 'login') {
-        if (isLoggedIn) {
-          const userConfirmed = await openConfirmationDialog({
-            message: tx('qrlogin_ask_login_another', qr.address),
-            confirmLabel: tx('login_title'),
-          })
-
-          if (!userConfirmed) {
-            return callback?.()
-          }
-
-          const new_accountId = await addAndSelectAccount()
-          await startInstantOnboarding(new_accountId, { ...parsed, qr })
-        } else {
-          await startInstantOnboarding(accountId, { ...parsed, qr })
-        }
-
-        return callback?.()
-      }
-
-      // DC_ASK_VERIFYCONTACT: Ask whether to verify the contact; if so, start
-      // the protocol with secure join
-      if (qr.kind === 'askVerifyContact') {
+      /**
+       * handle invite links for contacts, groups and channels
+       *
+       * DC_ASK_VERIFYCONTACT, DC_ASK_VERIFYGROUP, DC_ASK_JOIN_BROADCAST
+       *
+       * see https://securejoin.readthedocs.io/en/latest/new.html#setup-contact-protocol
+       *
+       * Before creating an account the user will be asked if he agrees to
+       * create a new account and join the contact chat, group or channel
+       */
+      if (
+        qr.kind === 'askVerifyContact' ||
+        qr.kind === 'askVerifyGroup' ||
+        qr.kind === 'askJoinBroadcast'
+      ) {
         if (!isLoggedIn) {
           // Ask user to create a new account with instant onboarding flow before they
-          // can start chatting with the given contact
-          await startInstantOnboarding(accountId, { ...parsed, qr })
+          // can enter the secure join flow
+          await startInstantOnboarding(accountId, {
+            ...parsed,
+            qr,
+          })
         } else {
-          const chatId = await secureJoinContact(accountId, { ...parsed, qr })
+          const chatId = await secureJoin(accountId, { ...parsed, qr })
           if (chatId) {
             selectChat(accountId, chatId)
           }
@@ -222,36 +349,25 @@ export default function useProcessQR() {
         return callback?.()
       }
 
-      // DC_ASK_VERIFYGROUP: Ask whether to join the group; if so, start the
-      // protocol with secure join
-      if (qr.kind === 'askVerifyGroup') {
-        if (!isLoggedIn) {
-          // Ask user to create a new account with instant onboarding flow before they
-          // can join the given group
-          await startInstantOnboarding(accountId, { ...parsed, qr })
-        } else {
-          const chatId = await secureJoinGroup(accountId, { ...parsed, qr })
-          if (chatId) {
-            selectChat(accountId, chatId)
-          }
-        }
-        return callback?.()
-      }
-
-      // DCBACKUP: Ask the user if they want to set up a new device
+      /**
+       * DCBACKUP
+       *
+       * Ask the user if they want to set up a new device
+       * based on an existing backup
+       * TODO: TRANSFER_BACKUP context only works with backup2 QR codes,
+       * so we might extract the QR code processing from this function
+       */
       if (qr.kind === 'backup2') {
         if (isLoggedIn) {
           await openAlertDialog({
-            message: tx('Please logout first'),
+            message: tx('need_to_be_logged_out'),
           })
-          callback?.()
         } else {
           openDialog(ReceiveBackupProgressDialog, {
             QrWithToken: url,
           })
         }
-        callback?.()
-        return
+        return callback?.()
       }
 
       // DC_FPR_OK: Verify contact fingerprint
@@ -261,105 +377,90 @@ export default function useProcessQR() {
           qr.contact_id
         )
 
-        const userConfirmed = await openConfirmationDialog({
+        // TODO apparently we are supposed to suggest
+        // to start the chat with this contact.
+        const _userConfirmed = await openConfirmationDialog({
           message: `The fingerprint of ${contact.displayName} is valid!`,
           confirmLabel: tx('ok'),
         })
 
-        if (userConfirmed) {
-          callback?.()
-        }
-        return
+        return callback?.()
       }
 
-      // DC_WITHDRAW_VERIFYCONTACT: Ask user to withdraw verified contact
-      if (qr.kind === 'withdrawVerifyContact') {
+      /**
+       * Handle withdraw/revive actions for contacts, groups, and channels
+       */
+      const withdrawOrReviveAction = WITHDRAW_OR_REVIVE_CONFIGS[qr.kind]
+      if (withdrawOrReviveAction) {
+        const isWithdraw = qr.kind.startsWith('withdraw')
+        const headerKey = isWithdraw ? 'withdraw_qr_code' : 'revive_qr_code'
+        const messageArgs = withdrawOrReviveAction.getMessageArgs?.(qr) || []
         const userConfirmed = await openConfirmationDialog({
-          message: tx('withdraw_verifycontact_explain'),
-          header: tx('withdraw_qr_code'),
+          message: tx(withdrawOrReviveAction.messageKey, ...messageArgs),
+          header: tx(headerKey),
+          confirmLabel: tx(headerKey),
+          ...(withdrawOrReviveAction.dataTestid && {
+            dataTestid: withdrawOrReviveAction.dataTestid,
+          }),
+        })
+
+        if (userConfirmed) {
+          await processQrCode(accountId, url)
+        }
+
+        return callback?.()
+      }
+
+      if (qr.kind === 'proxy') {
+        const userConfirmed = await openConfirmationDialog({
+          message: tx('proxy_use_proxy_confirm', qr.url),
           confirmLabel: tx('ok'),
         })
 
         if (userConfirmed) {
-          await setConfigFromQrCatchingErrorInAlert(accountId, url)
+          openDialog(ProxyConfiguration, {
+            accountId,
+            configured: true,
+            newProxyUrl: qr.url,
+          })
         }
 
-        callback?.()
-        return
+        return callback?.()
       }
 
-      // DC_REVIVE_VERIFYCONTACT: Ask user to revive withdrawn contact
-      // verification
-      if (qr.kind === 'reviveVerifyContact') {
-        const userConfirmed = await openConfirmationDialog({
-          message: tx('revive_verifycontact_explain'),
-          header: tx('revive_qr_code'),
-          confirmLabel: tx('ok'),
-        })
-
-        if (userConfirmed) {
-          await setConfigFromQrCatchingErrorInAlert(accountId, url)
-        }
-
-        callback?.()
-        return
-      }
-
-      // DC_WITHDRAW_VERIFYGROUP: Ask user to withdraw verified group
-      if (qr.kind === 'withdrawVerifyGroup') {
-        const userConfirmed = await openConfirmationDialog({
-          message: tx('withdraw_verifygroup_explain', qr.grpname),
-          header: tx('withdraw_qr_code'),
-          confirmLabel: tx('ok'),
-        })
-
-        if (userConfirmed) {
-          await setConfigFromQrCatchingErrorInAlert(accountId, url)
-        }
-
-        callback?.()
-        return
-      }
-
-      // DC_REVIVE_VERIFYGROUP: Ask user to revive from withdrawn verified
-      // group
-      if (qr.kind === 'reviveVerifyGroup') {
-        const userConfirmed = await openConfirmationDialog({
-          message: tx('revive_verifygroup_explain', qr.grpname),
-          header: tx('revive_qr_code'),
-          confirmLabel: tx('ok'),
-        })
-
-        if (userConfirmed) {
-          await setConfigFromQrCatchingErrorInAlert(accountId, url)
-        }
-
-        callback?.()
-        return
-      }
-
-      // Just show the contents of the scanned QR code if it is correct but
+      // Just show the contents of the scanned QR code
+      // so the user can see what it contains,
       // we don't know what to do with it ..
-      openDialog(CopyContentAlertDialog, {
-        message:
-          qr.kind === 'url'
-            ? tx('qrscan_contains_url', url)
-            : tx('qrscan_contains_text', url),
-        content: url,
-        cb: callback,
-      })
+      if (isLoggedIn) {
+        openDialog(CopyContentAlertDialog, {
+          message:
+            qr.kind === 'url'
+              ? tx('qrscan_contains_url', url)
+              : tx('qrscan_contains_text', url),
+          content: url,
+        })
+        // this closes the underlying scan dialog immediately
+        // while the copyContent dialog is still open
+        return callback?.()
+      } else {
+        await openAlertDialog({
+          message: tx('qraccount_qr_code_cannot_be_used'),
+          dataTestid: 'qr-code-cannot-be-used',
+        })
+        return callback?.()
+      }
     },
     [
       openAlertDialog,
       openConfirmationDialog,
       openDialog,
       openMailtoLink,
-      secureJoinContact,
-      secureJoinGroup,
-      setConfigFromQrCatchingErrorInAlert,
+      secureJoin,
+      processQrCode,
       startInstantOnboarding,
-      addAndSelectAccount,
       selectChat,
+      isChatmail,
+      multiDeviceMode,
       tx,
     ]
   )

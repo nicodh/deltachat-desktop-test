@@ -15,6 +15,7 @@ import type { DialogProps } from '../../../contexts/DialogContext'
 import QrCodeScanner from '../../dialogs/QrCodeScanner'
 import { CHATMAIL_INSTANCES_LIST_URL } from './chatmailInstances'
 import Icon from '../../Icon'
+import { SCAN_CONTEXT_TYPE } from '../../../hooks/useProcessQr'
 
 export default function UseOtherServerDialog({ onClose }: DialogProps) {
   const tx = useTranslationFunction()
@@ -28,7 +29,7 @@ export default function UseOtherServerDialog({ onClose }: DialogProps) {
 
   const onScanQRCode = () => {
     onClose()
-    openDialog(QrCodeScanner)
+    openDialog(QrCodeScanner, { scanContext: SCAN_CONTEXT_TYPE.OTHER_SERVER })
   }
 
   const onShowMoreInstances = () => {
@@ -45,28 +46,27 @@ export default function UseOtherServerDialog({ onClose }: DialogProps) {
       <DialogBody>
         <DialogContent>
           <Button
-            styling='secondary'
             className={styles.welcomeScreenButton}
             onClick={onShowMoreInstances}
           >
             {tx('instant_onboarding_other_server')}{' '}
             <Icon icon='open_in_new' className={styles.openExternalIcon} />
           </Button>
-
           <Button
-            styling='secondary'
             className={styles.welcomeScreenButton}
             onClick={onClickLogin}
+            data-testid='manual-email-login'
           >
             {tx('manual_account_setup_option')}
           </Button>
           <Button
-            styling='secondary'
             className={styles.welcomeScreenButton}
             onClick={onScanQRCode}
+            data-testid='scan-qr-login'
           >
             {tx('scan_invitation_code')}
           </Button>
+          <br /> {/* space after buttons */}
         </DialogContent>
       </DialogBody>
     </Dialog>

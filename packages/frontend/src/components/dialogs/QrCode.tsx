@@ -2,7 +2,6 @@ import React, {
   useState,
   useContext,
   useRef,
-  useEffect,
   useLayoutEffect,
   useCallback,
 } from 'react'
@@ -15,20 +14,23 @@ import Dialog, {
   FooterActions,
 } from '../Dialog'
 import FooterActionButton from '../Dialog/FooterActionButton'
-import QrReader from '../QrReader'
-import { qrCodeFromClipboard } from '../QrReader/helper'
+import { QrReader, QrCodeScanRef } from '../QrReader'
 
 import { BackendRemote } from '../../backend-com'
 import { getLogger } from '../../../../shared/logger'
-import { runtime } from '@deltachat-desktop/runtime-interface'
+
 import { ScreenContext } from '../../contexts/ScreenContext'
 import useContextMenu from '../../hooks/useContextMenu'
 import useProcessQr from '../../hooks/useProcessQr'
 import useTranslationFunction from '../../hooks/useTranslationFunction'
 import { selectedAccountId } from '../../ScreenController'
 
+import useDialog from '../../hooks/dialog/useDialog'
 import type { DialogProps } from '../../contexts/DialogContext'
 import useAlertDialog from '../../hooks/dialog/useAlertDialog'
+import QrCodeCopyConfirmationDialog from './QrCodeCopyConfirmationDialog'
+import { useRpcFetch } from '../../hooks/useFetch'
+import { SCAN_CONTEXT_TYPE } from '../../hooks/useProcessQr'
 
 const log = getLogger('renderer/dialogs/QrCode')
 
@@ -36,33 +38,38 @@ type Props = {
   selectScan?: true
   qrCodeSVG: string
   qrCode: string
+  scanContext: SCAN_CONTEXT_TYPE
 }
 
 /**
- * dialog to show a qr code and scan a qr code
+ * dialog showing 2 components in two tabs:
+ * one that displays a qr code and one that
+ * provides a QR code reader
  */
 export default function QrCode({
+  selectScan,
   qrCodeSVG,
   qrCode,
-  selectScan,
+  scanContext,
   onClose,
 }: Props & DialogProps) {
   const tx = useTranslationFunction()
   const [showQrCode, setShowQrCode] = useState(!selectScan)
-  const [addr, setAddr] = useState('')
 
-  useEffect(() => {
-    if (window.__selectedAccountId) {
-      BackendRemote.rpc
-        .getConfig(window.__selectedAccountId, 'addr')
-        .then(addr => setAddr(addr || ''))
-    }
-  }, [])
+  const addrFetch = useRpcFetch(
+    BackendRemote.rpc.getConfig,
+    window.__selectedAccountId ? [window.__selectedAccountId, 'addr'] : null
+  )
+  if (addrFetch?.result?.ok === false) {
+    log.error(addrFetch.result.err)
+  }
+  const addr = addrFetch?.result?.ok ? (addrFetch.result.value ?? '') : ''
 
   return (
     <Dialog onClose={onClose} dataTestid='qr-dialog'>
       <div className='qr-code-switch'>
         <button
+          type='button'
           className={classNames({ active: showQrCode })}
           onClick={() => setShowQrCode(true)}
           data-testid='qr-show'
@@ -70,6 +77,7 @@ export default function QrCode({
           {tx('qrshow_title')}
         </button>
         <button
+          type='button'
           className={classNames({ active: !showQrCode })}
           onClick={() => setShowQrCode(false)}
           data-testid='show-qr-scan'
@@ -85,7 +93,9 @@ export default function QrCode({
           onClose={onClose}
         />
       )}
-      {!showQrCode && <QrCodeScanQrInner onClose={onClose} />}
+      {!showQrCode && (
+        <QrCodeScanQrInner onClose={onClose} scanContext={scanContext} />
+      )}
     </Dialog>
   )
 }
@@ -93,7 +103,7 @@ export default function QrCode({
 export function QrCodeShowQrInner({
   qrCode,
   qrCodeSVG,
-  description: _description,
+  description,
   onClose,
   onBack,
 }: {
@@ -105,14 +115,22 @@ export function QrCodeShowQrInner({
 }) {
   const { userFeedback } = useContext(ScreenContext)
   const tx = useTranslationFunction()
+  const { openDialog } = useDialog()
 
   const onCopy = () => {
-    runtime.writeClipboardText(qrCode).then(_ =>
-      userFeedback({
-        type: 'success',
-        text: tx('copy_qr_data_success'),
-      })
-    )
+    // Pop up confirmation dialog when clicked instead of copying the link directly
+    openDialog(QrCodeCopyConfirmationDialog, {
+      message: tx('share_invite_link_explain'),
+      content: qrCode,
+      copyCb: () => {
+        userFeedback({
+          type: 'success',
+          text: tx('copied_to_clipboard'),
+        })
+        onClose()
+      },
+      // no cancelCb; skip closing the window, maybe the user wants to use the QR code after all
+    })
   }
 
   const [svgUrl, setSvgUrl] = useState<string | undefined>(undefined)
@@ -136,7 +154,21 @@ export function QrCodeShowQrInner({
     }
   }, [qrCodeSVG])
 
+  const processQr = useProcessQr()
+  const accountId = selectedAccountId()
+
   const imageContextMenu = useContextMenu([
+    {
+      label: tx('withdraw_qr_code'),
+      action: () =>
+        processQr(
+          accountId,
+          qrCode,
+          SCAN_CONTEXT_TYPE.DEFAULT, // no need to set a specific context here
+          onBack || onClose
+        ),
+      dataTestid: 'withdraw-qr-code',
+    },
     {
       label: tx('menu_copy_image_to_clipboard'),
       action: async () => {
@@ -177,8 +209,11 @@ export function QrCodeShowQrInner({
               }}
               className='show-qr-dialog-qr-image'
               src={svgUrl}
+              alt={tx('qr_code') + '\n' + description}
               onContextMenu={imageContextMenu}
+              aria-haspopup='menu'
               tabIndex={0}
+              data-testid='qr-code-image'
             />
           )}
         </DialogContent>
@@ -186,7 +221,8 @@ export function QrCodeShowQrInner({
       <DialogFooter>
         <FooterActions align={!onClose && !onBack ? 'center' : 'spaceBetween'}>
           <FooterActionButton data-testid='copy-qr-code' onClick={onCopy}>
-            {tx('global_menu_edit_copy_desktop')}
+            <div className='copy-link-icon'></div>
+            {tx('menu_copy_link_to_clipboard')}
           </FooterActionButton>
           {onClose && (
             <FooterActionButton onClick={onClose} data-testid='close'>
@@ -206,14 +242,17 @@ export function QrCodeShowQrInner({
 
 export function QrCodeScanQrInner({
   onClose,
+  scanContext,
 }: React.PropsWithChildren<{
   onClose: () => void
+  scanContext: SCAN_CONTEXT_TYPE
 }>) {
   const tx = useTranslationFunction()
   const accountId = selectedAccountId()
   const processQr = useProcessQr()
   const processingQrCode = useRef(false)
   const openAlertDialog = useAlertDialog()
+  const qrReaderRef = useRef<QrCodeScanRef | null>(null)
 
   const onDone = useCallback(() => {
     onClose()
@@ -234,7 +273,7 @@ export function QrCodeScanQrInner({
       if (data && !processingQrCode.current) {
         processingQrCode.current = true
         try {
-          await processQr(accountId, data, onDone)
+          await processQr(accountId, data, scanContext, onDone)
         } catch (error: any) {
           log.errorWithoutStackTrace('QrReader process error: ', error)
           handleError(error)
@@ -244,26 +283,23 @@ export function QrCodeScanQrInner({
         log.debug('Already processing a qr code')
       }
     },
-    [accountId, processQr, onDone, handleError]
+    [accountId, processQr, onDone, handleError, scanContext]
   )
 
   const pasteClipboard = useCallback(async () => {
-    try {
-      const result = await qrCodeFromClipboard(runtime)
-      handleScan(result)
-    } catch (error: any) {
-      if (typeof error === 'string') {
-        handleError(error)
-      } else {
-        handleError(error.toString())
-      }
+    if (qrReaderRef.current) {
+      qrReaderRef.current.handlePasteFromClipboard()
     }
-  }, [handleError, handleScan])
+  }, [])
 
   return (
     <>
       <DialogBody>
-        <QrReader onScanSuccess={handleScan} onError={handleError} />
+        <QrReader
+          onScanSuccess={handleScan}
+          onError={handleError}
+          ref={qrReaderRef}
+        />
       </DialogBody>
       <DialogFooter>
         <FooterActions align='spaceBetween'>
@@ -271,7 +307,7 @@ export function QrCodeScanQrInner({
             {tx('global_menu_edit_paste_desktop')}
           </FooterActionButton>
           <FooterActionButton onClick={onClose} data-testid='close'>
-            {tx('close')}
+            {tx('cancel')}
           </FooterActionButton>
         </FooterActions>
       </DialogFooter>

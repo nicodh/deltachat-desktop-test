@@ -1,20 +1,16 @@
 // This needs to be injected / imported before the frontend script
 
-import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
+import { Channel, invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 
 import type { attachLogger } from '@tauri-apps/plugin-log'
 import { getStore } from '@tauri-apps/plugin-store'
 import type { Store } from '@tauri-apps/plugin-store'
-import { open } from '@tauri-apps/plugin-shell'
-import {
-  writeText,
-  readText,
-  readImage,
-} from '@tauri-apps/plugin-clipboard-manager'
+import { openPath, openUrl } from '@tauri-apps/plugin-opener'
+import { writeText, readText } from '@tauri-apps/plugin-clipboard-manager'
 
-import {
+import type {
+  AutostartState,
   DcNotification,
   DcOpenWebxdcParameters,
   DesktopSettingsType,
@@ -25,7 +21,14 @@ import {
 } from '@deltachat-desktop/shared/shared-types.js'
 import '@deltachat-desktop/shared/global.d.ts'
 
-import { Runtime, RuntimeAppPath } from '@deltachat-desktop/runtime-interface'
+import type {
+  DropListener,
+  MediaAccessStatus,
+  MediaType,
+  Runtime,
+  RuntimeAppPath,
+} from '@deltachat-desktop/runtime-interface'
+
 import { BaseDeltaChat, yerpc } from '@deltachat/jsonrpc-client'
 import type { LocaleData } from '@deltachat-desktop/shared/localize.js'
 import type {
@@ -33,27 +36,72 @@ import type {
   LogLevelString,
 } from '@deltachat-desktop/shared/logger.js'
 import type { setLogHandler as setLogHandlerFunction } from '@deltachat-desktop/shared/logger.js'
+import { getCurrentWebview } from '@tauri-apps/api/webview'
 
 let logJsonrpcConnection = false
+
+type MainWindowEvents =
+  | {
+      event: 'sendToChat'
+      data: {
+        options: {
+          text: string | null | undefined
+          file: { fileName: string; fileContent: string } | null
+        }
+        account: number | null
+      }
+    }
+  | {
+      event: 'localeReloaded'
+      data: string | null
+    }
+  | {
+      event: 'showAboutDialog'
+    }
+  | {
+      event: 'showSettingsDialog'
+    }
+  | {
+      event: 'showKeybindingsDialog'
+    }
+  | {
+      event: 'resumeFromSleep'
+    }
+  | {
+      event: 'toggleNotifications'
+    }
+  | {
+      event: 'onThemeUpdate'
+    }
+  | {
+      event: 'notificationClick'
+      data: { accountId: number; chatId: number; msgId: number }
+    }
+  | {
+      event: 'deepLinkOpened'
+      data: string
+    }
+
+const events = new Channel<MainWindowEvents>()
+const jsonrpc = new Channel<yerpc.Message>()
+invoke('set_main_window_channels', { jsonrpc, events })
 
 class TauriTransport extends yerpc.BaseTransport {
   constructor(private callCounterFunction: (label: string) => void) {
     super()
 
-    listen<string>('dc-jsonrpc-message', event => {
-      const message: yerpc.Message = JSON.parse(event.payload)
+    jsonrpc.onmessage = (message: yerpc.Message) => {
       if (logJsonrpcConnection) {
-        /* ignore-console-log */
+        // eslint-disable-next-line no-console
         console.debug('%c▼ %c[JSONRPC]', 'color: red', 'color:grey', message)
       }
       this._onmessage(message)
-    })
+    }
   }
   _send(message: yerpc.Message): void {
-    const serialized = JSON.stringify(message)
-    invoke('deltachat_jsonrpc_request', { message: serialized })
+    invoke('deltachat_jsonrpc_request', { message })
     if (logJsonrpcConnection) {
-      /* ignore-console-log */
+      // eslint-disable-next-line no-console
       console.debug('%c▲ %c[JSONRPC]', 'color: green', 'color:grey', message)
       if ((message as any)['method']) {
         this.callCounterFunction((message as any).method)
@@ -69,7 +117,13 @@ export class TauriDeltaChat extends BaseDeltaChat<TauriTransport> {
   }
 }
 
+// Probably not super reliable, but we don't need it to be.
+const isWindowsOS = navigator.userAgent.includes('Win')
+
 class TauriRuntime implements Runtime {
+  constructor() {
+    this.getActiveTheme = this.getActiveTheme.bind(this)
+  }
   emitUIFullyReady(): void {
     invoke('ui_frontend_ready')
   }
@@ -82,15 +136,23 @@ class TauriRuntime implements Runtime {
     return new TauriDeltaChat(callCounterFunction)
   }
   openMessageHTML(
-    _window_id: string,
-    _accountId: number,
-    _isContactRequest: boolean,
-    _subject: string,
-    _sender: string,
-    _receiveTime: string,
-    _content: string
+    accountId: number,
+    messageId: number,
+    isContactRequest: boolean,
+    subject: string,
+    sender: string,
+    receiveTime: string,
+    content: string
   ): void {
-    throw new Error('Method not implemented. 3')
+    invoke('open_html_window', {
+      accountId,
+      messageId,
+      isContactRequest,
+      subject,
+      sender,
+      receiveTime,
+      content,
+    })
   }
   async getDesktopSettings(): Promise<DesktopSettingsType> {
     // static not saved - not needed anymore besides cleaning up values in electron version
@@ -107,7 +169,6 @@ class TauriRuntime implements Runtime {
     } satisfies Partial<DesktopSettingsType>
 
     const frontendAndTauri = {
-      // TODO field 1
       zoomFactor: 1, // ? not sure yet
       minimizeToTray: true,
       lastSaveDialogLocation: undefined,
@@ -115,24 +176,23 @@ class TauriRuntime implements Runtime {
       HTMLEmailAskForRemoteLoadingConfirmation: true,
       HTMLEmailAlwaysLoadRemoteContent: false,
       contentProtectionEnabled: false,
+      activeTheme: 'system',
+      locale: null, // if this is null, the system chooses the system language that electron reports
+      notifications: true,
+      syncAllAccounts: true,
+      autostart: true,
     } satisfies Partial<DesktopSettingsType>
 
     const frontendOnly = {
-      // TODO field 2
-      locale: null, // if this is null, the system chooses the system language that electron reports
-      notifications: true,
       showNotificationContent: true,
       enterKeySends: false,
-      enableAVCalls: false,
+      enableAVCallsV2: false,
       enableBroadcastLists: false,
-      enableChatAuditLog: false,
       enableOnDemandLocationStreaming: false,
       chatViewBgImg: undefined,
-      activeTheme: 'system',
-      syncAllAccounts: true,
-      experimentalEnableMarkdownInMessages: false,
-      enableRelatedChats: false,
       galleryImageKeepAspectRatio: false,
+      isMentionsEnabled: false,
+      inChatSoundsVolume: 0.5,
       useSystemUIFont: false,
     } satisfies Partial<DesktopSettingsType>
 
@@ -156,9 +216,13 @@ class TauriRuntime implements Runtime {
     value: string | number | boolean | undefined
   ): Promise<void> {
     // 1. set values in key value store
-    await this.store.set(key, value)
+    if (typeof value === 'undefined') {
+      await this.store.delete(key)
+    } else {
+      await this.store.set(key, value)
+    }
     // 2. if supported in tauri settings, then also notifiy tauri (like tray_icon, but not experimental ui options)
-    // IDEA: if there is a way to listen for changes in rust code, then that would be preferably?
+    await invoke('change_desktop_settings_apply_side_effects', { key })
   }
   private log!: ReturnType<typeof getLoggerFunction>
   private store!: Store
@@ -167,19 +231,28 @@ class TauriRuntime implements Runtime {
     getLogger: typeof getLoggerFunction
   ): Promise<void> {
     // fetch vars
-    // - rc config // TODO - get real values // todo also cli interface?
+    const config = await invoke<{
+      log_debug: boolean
+      log_to_console: boolean
+      devtools: boolean
+      dev_mode: boolean
+      forced_tray_icon: boolean
+      theme: string | null
+      theme_watch: boolean
+    }>('get_frontend_run_config')
     const rc_config: RC_Config = {
-      'log-debug': true,
-      'log-to-console': true,
-      'machine-readable-stacktrace': true,
-      theme: undefined,
-      'theme-watch': false,
-      devmode: true,
+      'log-debug': config.log_debug,
+      'log-to-console': config.log_to_console,
+      devmode: config.dev_mode,
+      minimized: config.forced_tray_icon,
+
+      theme: config.theme || undefined,
+      'theme-watch': config.theme_watch,
       'translation-watch': false,
-      minimized: false,
 
       // does not exist in delta tauri
       'allow-unsafe-core-replacement': false,
+      'machine-readable-stacktrace': true,
       // these are not relevant for frontend (--version, --help and their shorthand forms)
       version: false,
       v: false,
@@ -232,7 +305,9 @@ class TauriRuntime implements Runtime {
       // so the shown file location is not very helpful most of the time,
       // still for errors the stack trace is appended
       const onlyFnName = location?.split('@')[0]
-      location = `JS ${channel}${onlyFnName ? `::${onlyFnName}` : ''}`
+      location = `:JS::${channel.replace(/\//g, '::')}${
+        onlyFnName ? `::${onlyFnName}` : ''
+      }`
 
       const tauriLogLevel = variants[level]
       invoke('plugin:log|log', {
@@ -255,6 +330,60 @@ class TauriRuntime implements Runtime {
     }
     this.store = store
     this.currentLogFileLocation = await invoke('get_current_logfile')
+
+    events.onmessage = event => {
+      if (event.event === 'sendToChat') {
+        const { options, account } = event.data
+        this.onWebxdcSendToChat?.(
+          options.file
+            ? {
+                file_name: options.file.fileName,
+                file_content: options.file.fileContent,
+              }
+            : null,
+          options.text || null,
+          account || undefined
+        )
+      } else if (event.event === 'localeReloaded') {
+        // event.data is only null in case of reloading via --watch-translations
+        this.onChooseLanguage?.(event.data || window.localeData.locale)
+      } else if (event.event === 'showAboutDialog') {
+        this.onShowDialog?.('about')
+      } else if (event.event === 'showSettingsDialog') {
+        this.onShowDialog?.('settings')
+      } else if (event.event === 'showKeybindingsDialog') {
+        this.onShowDialog?.('keybindings')
+      } else if (event.event === 'resumeFromSleep') {
+        this.onResumeFromSleep?.()
+      } else if (event.event === 'toggleNotifications') {
+        this.onToggleNotifications?.()
+      } else if (event.event === 'onThemeUpdate') {
+        this.log.debug('on theme update')
+        this.onThemeUpdate?.()
+      } else if (event.event === 'deepLinkOpened') {
+        this.onOpenQrUrl?.(event.data)
+      } else if (event.event === 'notificationClick') {
+        this.notificationCallback?.(event.data)
+      }
+    }
+    getCurrentWebview().onDragDropEvent(event => {
+      if (event.payload.type === 'drop') {
+        if (event.payload.paths.includes(this.lastDragOutFile || '')) {
+          this.log.info('prevented dropping a file that we just draged out')
+          return
+        }
+        // IDEA we could check element bounds and drop location, to only let you drop on chatview
+        this.onDrop?.handler(event.payload.paths)
+      }
+      // IDEA: there are also enter and over events with a position,
+      // we could use to show an drop overlay explaining the feature
+    })
+    window
+      .matchMedia('(prefers-color-scheme: dark)')
+      .addEventListener('change', event => {
+        this.log.debug('system theme changed:', { dark_theme: event.matches })
+        this.onThemeUpdate?.()
+      })
   }
   reloadWebContent(): void {
     // for now use the browser method as long as it is sufficient
@@ -262,7 +391,7 @@ class TauriRuntime implements Runtime {
     location.reload()
   }
   openLogFile(): void {
-    open(this.getCurrentLogLocation())
+    openPath(this.getCurrentLogLocation())
   }
   currentLogFileLocation: string | null = null
   getCurrentLogLocation(): string {
@@ -289,8 +418,11 @@ class TauriRuntime implements Runtime {
     return this.runtime_info
   }
   openLink(link: string): void {
-    if (link.startsWith('http:') || link.startsWith('https:')) {
-      open(link)
+    if (
+      link.toLowerCase().startsWith('http:') ||
+      link.toLowerCase().startsWith('https:')
+    ) {
+      openUrl(link)
     } else {
       this.log.error('tried to open a non http/https external link', {
         link,
@@ -316,12 +448,12 @@ class TauriRuntime implements Runtime {
     // this.log.info({ transformBlobURL: blob_path, matches })
 
     if (matches) {
-      let filename = matches[3]
-      if (decodeURIComponent(filename) === filename) {
-        // if it is not already encoded then encode it.
-        filename = encodeURIComponent(filename)
-      }
-      return `dcblob://${matches[2]}/${matches[3]}`
+      // Currently encoding is unnecessary, because file names are
+      // hex strings + file extension,
+      // but let's do it for consistency with `transformStickerURL`,
+      // and some future-proofing.
+      const filename = encodeURIComponent(matches[3])
+      return `${this.runtime_info?.tauriSpecific?.scheme.blobs}${matches[2]}/${filename}`
     }
     if (blob_path !== '') {
       this.log.error('transformBlobURL wrong url format', blob_path)
@@ -330,26 +462,39 @@ class TauriRuntime implements Runtime {
     }
     return ''
   }
+  transformStickerURL(sticker_path: string): string {
+    const matches = sticker_path.match(
+      /.*(:?\\|\/)(.+?)\1stickers\1(.+?)\1(.+)/
+    )
+    // this.log.info({ transformStickerURL: sticker_path, matches })
+
+    if (matches) {
+      // Keep in mind that the sticker pack folder and sticker name
+      // can include arbitrary characters.
+      const packName = encodeURIComponent(matches[3])
+      const filename = encodeURIComponent(matches[4])
+      return `${this.runtime_info?.tauriSpecific?.scheme.stickers}${matches[2]}/${packName}/${filename}`
+    }
+    if (sticker_path !== '') {
+      this.log.error('transformStickerURL wrong url format', sticker_path)
+    } else {
+      this.log.debug(
+        'transformStickerURL called with empty string for sticker_path'
+      )
+    }
+    return ''
+  }
   readClipboardText(): Promise<string> {
     return readText()
   }
-  async readClipboardImage(): Promise<string | null> {
-    try {
-      const clipboardImage = await readImage()
-      const _blob = new Blob([await clipboardImage.rgba()], { type: 'image' })
-      //TODO blob to base64
-
-      throw new Error('Method not implemented.18')
-    } catch (error) {
-      this.log.warn('readClipboardImage', error)
-      return null
-    }
+  readClipboardImage(): Promise<string | null> {
+    return invoke('get_clipboard_image_as_data_uri')
   }
   writeClipboardText(text: string): Promise<void> {
     return writeText(text)
   }
-  writeClipboardImage(_path: string): Promise<void> {
-    throw new Error('Method not implemented.20')
+  writeClipboardImage(path: string): Promise<void> {
+    return invoke('copy_image_to_clipboard', { path })
   }
   getAppPath(name: RuntimeAppPath): Promise<string> {
     // defined in packages/target-tauri/src-tauri/src/app_path.rs
@@ -361,7 +506,7 @@ class TauriRuntime implements Runtime {
   }
   async openPath(path: string): Promise<string> {
     try {
-      await open(path)
+      await openPath(path)
       return ''
     } catch (error: any) {
       this.log.error('openPath', path, error)
@@ -371,11 +516,15 @@ class TauriRuntime implements Runtime {
   getConfigPath(): string {
     throw new Error('Method not implemented.24')
   }
-  openWebxdc(_msgId: number, _params: DcOpenWebxdcParameters): void {
-    throw new Error('Method not implemented.25')
+  openWebxdc(messageId: number, params: DcOpenWebxdcParameters): void {
+    invoke('open_webxdc', {
+      messageId,
+      accountId: params.accountId,
+      href: params.href,
+    })
   }
   getWebxdcIconURL(accountId: number, msgId: number): string {
-    return `webxdc-icon://${accountId}/${msgId}`
+    return `${this.runtime_info?.tauriSpecific?.scheme.webxdcIcon}${accountId}/${msgId}`
   }
   deleteWebxdcAccountData(accountId: number): Promise<void> {
     return invoke('delete_webxdc_account_data', { accountId })
@@ -399,6 +548,9 @@ class TauriRuntime implements Runtime {
   notifyWebxdcInstanceDeleted(accountId: number, instanceId: number): void {
     invoke('on_webxdc_message_deleted', { accountId, instanceId })
   }
+  startOutgoingVideoCall(): void {
+    throw new Error('Method not implemented.101')
+  }
   restartApp(): void {
     // will not be implemented in tauri for now, as this method is currently unused
     this.log.error('Method not implemented: restartApp')
@@ -408,67 +560,129 @@ class TauriRuntime implements Runtime {
       locale: locale || (await this.getDesktopSettings()).locale || 'en',
     })
   }
-  setLocale(_locale: string): Promise<void> {
-    throw new Error('Method not implemented.35')
+  setLocale(locale: string): Promise<void> {
+    return invoke('change_lang', { locale })
   }
   setBadgeCounter(value: number): void {
-    getCurrentWindow().setBadgeCount(value === 0 ? undefined : value)
+    const window = getCurrentWindow()
+
+    // According to the docs, `setBadgeCount` is unsupported on Windows,
+    // and we should use `setOverlayIcon` instead.
+    window.setBadgeCount(value === 0 ? undefined : value)
+    if (isWindowsOS) {
+      // Yes, this won't show the count.
+      window.setOverlayIcon?.(
+        value === 0 ? undefined : 'images/tray/unread-badge.png'
+      )
+    }
+
+    invoke('update_tray_icon_badge', { counter: value })
   }
-  showNotification(_data: DcNotification): void {
-    throw new Error('Method not implemented.37')
+  showNotification({
+    title,
+    body,
+    icon,
+    iconIsAvatar,
+    chatId,
+    messageId,
+    accountId,
+  }: DcNotification): void {
+    invoke('show_notification', {
+      title,
+      body,
+      icon,
+      iconIsAvatar: iconIsAvatar || false,
+      chatId,
+      messageId,
+      accountId,
+    })
   }
   clearAllNotifications(): void {
-    throw new Error('Method not implemented.38')
+    invoke('clear_all_notifications')
   }
-  clearNotifications(_chatId: number): void {
-    this.log.error('Method not implemented.39 - clearNotifications')
+  clearNotifications(accountId: number, chatId: number): void {
+    invoke('clear_notifications', { accountId, chatId })
   }
+
+  notificationCallback?: (data: {
+    accountId: number
+    chatId: number
+    msgId: number
+  }) => void
   setNotificationCallback(
-    _cb: (data: { accountId: number; chatId: number; msgId: number }) => void
+    cb: (data: { accountId: number; chatId: number; msgId: number }) => void
   ): void {
-    this.log.error('Method not implemented.40')
+    this.notificationCallback = cb
   }
-  writeClipboardToTempFile(_name?: string): Promise<string> {
-    throw new Error('Method not implemented.41')
+  writeTempFileFromBase64(name: string, content: string): Promise<string> {
+    return invoke('write_temp_file_from_base64', { name, content })
   }
-  writeTempFileFromBase64(_name: string, _content: string): Promise<string> {
-    throw new Error('Method not implemented.42')
+  writeTempFile(name: string, content: string): Promise<string> {
+    return invoke('write_temp_file', { name, content })
   }
-  writeTempFile(_name: string, _content: string): Promise<string> {
-    throw new Error('Method not implemented.43')
+  copyFileToInternalTmpDir(
+    fileName: string,
+    sourcePath: string
+  ): Promise<string> {
+    return invoke('copy_blob_file_to_internal_tmp_dir', {
+      fileName,
+      sourcePath,
+    })
   }
-  removeTempFile(_path: string): Promise<void> {
-    throw new Error('Method not implemented.44')
+
+  removeTempFile(path: string): Promise<void> {
+    return invoke('remove_temp_file', { path })
   }
-  getWebxdcDiskUsage(
-    _accountId: number
-  ): Promise<{ total_size: number; data_size: number }> {
-    // will not be implemented in tauri for now, as this method is currently unused
-    throw new Error('Method not implemented: runtime.getWebxdcDiskUsage')
-  }
-  clearWebxdcDOMStorage(_accountId: number): Promise<void> {
-    // will not be implemented in tauri for now, as this method is currently unused
-    // Also isn't this function essentially a duplicate of `this.deleteWebxdcAccountData`?
-    throw new Error('Method not implemented.46')
-  }
+
   getAvailableThemes(): Promise<Theme[]> {
-    throw new Error('Method not implemented.47')
+    return invoke<Theme[]>('get_available_themes')
   }
   async getActiveTheme(): Promise<{ theme: Theme; data: string } | null> {
-    this.log.error('Method not implemented.48')
-    return null
+    let themeAddress = await invoke<string>('get_current_active_theme_address')
+    if (themeAddress === 'system') {
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        themeAddress = 'dc:dark'
+      } else {
+        themeAddress = 'dc:light'
+      }
+    }
+    try {
+      const [theme, theme_content] = await invoke<
+        [theme: Theme, theme_content: string]
+      >('get_theme', { themeAddress })
+      return { theme, data: theme_content }
+    } catch (err) {
+      this.log.error('failed to getActiveTheme:', err)
+      return null
+    }
   }
   saveBackgroundImage(
-    _file: string,
-    _isDefaultPicture: boolean
+    srcPath: string,
+    isDefaultPicture: boolean
   ): Promise<string> {
-    throw new Error('Method not implemented.49')
+    return invoke('copy_background_image_file', { srcPath, isDefaultPicture })
   }
-  onDragFileOut(_file: string): void {
-    throw new Error('Method not implemented.50')
+  lastDragOutFile?: string
+  onDrop: DropListener | null = null
+  setDropListener(onDrop: DropListener | null) {
+    this.onDrop = onDrop
   }
-  isDroppedFileFromOutside(_file: File): boolean {
-    throw new Error('Method not implemented.51')
+  onDragFileOut(fileName: string): void {
+    this.lastDragOutFile = fileName
+    invoke('drag_file_out', { fileName })
+  }
+  isDroppedFileFromOutside(file: string): boolean {
+    this.log.debug('isDroppedFileFromOutside', file)
+    this.log.info(this.lastDragOutFile, file)
+    return this.lastDragOutFile !== file
+  }
+  // only works on macOS and iOS
+  // exp.runtime.debug_get_datastore_ids()
+  async debug_get_datastore_ids() {
+    return await invoke('debug_get_datastore_ids')
+  }
+  getAutostartState(): Promise<AutostartState> {
+    return invoke('get_autostart_state')
   }
   onChooseLanguage: ((locale: string) => Promise<void>) | undefined
   onThemeUpdate: (() => void) | undefined
@@ -479,10 +693,26 @@ class TauriRuntime implements Runtime {
   onWebxdcSendToChat:
     | ((
         file: { file_name: string; file_content: string } | null,
-        text: string | null
+        text: string | null,
+        account_id?: number
       ) => void)
     | undefined
   onResumeFromSleep: (() => void) | undefined
+  onToggleNotifications: (() => void) | undefined
+  checkMediaAccess(mediaType: MediaType): Promise<MediaAccessStatus> {
+    return invoke('check_media_permission', {
+      permission: mediaTypeToPermission[mediaType],
+    })
+  }
+  askForMediaAccess(mediaType: MediaType): Promise<boolean> {
+    return invoke('request_media_permission', {
+      permission: mediaTypeToPermission[mediaType],
+    })
+  }
+}
+const mediaTypeToPermission: Record<MediaType, string> = {
+  camera: 'video',
+  microphone: 'audio',
 }
 
 ;(window as any).r = new TauriRuntime()

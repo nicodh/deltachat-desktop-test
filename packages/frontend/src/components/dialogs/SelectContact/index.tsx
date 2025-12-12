@@ -1,12 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { C } from '@deltachat/jsonrpc-client'
-import Dialog, {
-  DialogBody,
-  DialogFooter,
-  DialogHeader,
-  FooterActionButton,
-  FooterActions,
-} from '../../Dialog'
+import Dialog, { DialogBody, DialogHeader } from '../../Dialog'
 import styles from './styles.module.scss'
 import useTranslationFunction from '../../../hooks/useTranslationFunction'
 import type { T } from '@deltachat/jsonrpc-client'
@@ -34,10 +28,8 @@ export default function SelectContactDialog({
   onOk: (contact: T.Contact) => void
 } & DialogProps) {
   const [queryStr, setQueryStr] = useState('')
-  const { contactIds, contactCache, loadContacts } = useLazyLoadedContacts(
-    C.DC_GCL_ADD_SELF,
-    queryStr
-  )
+  const { contactIds, contactCache, loadContacts, isContactLoaded } =
+    useLazyLoadedContacts(C.DC_GCL_ADD_SELF, queryStr)
   const tx = useTranslationFunction()
 
   const selectContactListRef = useRef<HTMLDivElement>(null)
@@ -58,7 +50,7 @@ export default function SelectContactDialog({
 
   return (
     <Dialog width={400} onClose={onClose} fixed>
-      <DialogHeader>
+      <DialogHeader onClose={onClose}>
         <input
           data-no-drag-region
           className='search-input'
@@ -77,12 +69,7 @@ export default function SelectContactDialog({
                 ref={infiniteLoaderRef}
                 itemCount={contactIds.length}
                 loadMoreItems={loadContacts}
-                // perf: consider using `isContactLoaded` from `useLazyLoadedContacts`
-                // otherwise sometimes we might load the same contact twice (performance thing)
-                // See https://github.com/bvaughn/react-window/issues/765
-                isItemLoaded={index =>
-                  contactCache[contactIds[index]] != undefined
-                }
+                isItemLoaded={isContactLoaded}
                 // minimumBatchSize={100}
               >
                 {({ onItemsRendered, ref }) => (
@@ -90,6 +77,8 @@ export default function SelectContactDialog({
                     wrapperElementRef={selectContactListRef}
                   >
                     <FixedSizeList
+                      innerElementType={'ol'}
+                      className='react-window-list-reset'
                       itemCount={contactIds.length}
                       itemData={{
                         onContactClick: onOk,
@@ -118,13 +107,6 @@ export default function SelectContactDialog({
           </AutoSizer>
         </div>
       </DialogBody>
-      <DialogFooter>
-        <FooterActions>
-          <FooterActionButton onClick={onClose}>
-            {tx('close')}
-          </FooterActionButton>
-        </FooterActions>
-      </DialogFooter>
     </Dialog>
   )
 }
@@ -144,23 +126,22 @@ function SelectContactDialogRow({
 }) {
   const { onContactClick, contactIds, contactCache } = data
 
-  const el = (() => {
-    const item = contactCache[contactIds[index]]
-    if (!item) {
-      // It's not loaded yet
-      return null
-    }
-    const contact: T.Contact = item
-    return (
-      <ContactListItem
-        contact={contact}
-        onClick={onContactClick}
-        showCheckbox={false}
-        checked={false}
-        showRemove={false}
-      />
-    )
-  })()
+  const item = contactCache[contactIds[index]]
+  if (!item) {
+    // It's not loaded yet
+    return <li style={style}></li>
+  }
 
-  return <div style={style}>{el}</div>
+  const contact: T.Contact = item
+  return (
+    <ContactListItem
+      tagName='li'
+      style={style}
+      contact={contact}
+      onClick={onContactClick}
+      showCheckbox={false}
+      checked={false}
+      showRemove={false}
+    />
+  )
 }

@@ -1,15 +1,15 @@
-import { C } from '@deltachat/jsonrpc-client'
 import React, { useContext } from 'react'
 
 import { Timespans } from '../../../shared/constants'
 import { ContextMenuItem } from './ContextMenu'
-import SettingsStoreInstance, { useSettingsStore } from '../stores/settings'
 import { BackendRemote } from '../backend-com'
 import { ActionEmitter, KeybindAction } from '../keybindings'
 import useChat from '../hooks/chat/useChat'
 import useChatDialog from '../hooks/chat/useChatDialog'
 import useDialog from '../hooks/dialog/useDialog'
-import useTranslationFunction from '../hooks/useTranslationFunction'
+import useTranslationFunction, {
+  useTranslationWritingDirection,
+} from '../hooks/useTranslationFunction'
 import DisappearingMessages from './dialogs/DisappearingMessages'
 import { ContextMenuContext } from '../contexts/ContextMenuContext'
 import { selectedAccountId } from '../ScreenController'
@@ -17,21 +17,17 @@ import { unmuteChat } from '../backend/chat'
 
 import type { T } from '@deltachat/jsonrpc-client'
 
-export function useThreeDotMenu(
-  selectedChat?: T.FullChat,
-  mode: 'chat' | 'gallery' = 'chat'
-) {
+export function useThreeDotMenu(selectedChat?: T.FullChat) {
   const { openDialog } = useDialog()
   const { openContextMenu } = useContext(ContextMenuContext)
-  const [settingsStore] = useSettingsStore()
   const tx = useTranslationFunction()
   const accountId = selectedAccountId()
   const { unselectChat } = useChat()
+  const writingDirection = useTranslationWritingDirection()
   const {
     openBlockFirstContactOfChatDialog,
-    openChatAuditDialog,
-    openDeleteChatDialog,
-    openLeaveChatDialog,
+    openDeleteChatsDialog,
+    openLeaveGroupOrChannelDialog,
     openClearChatDialog,
   } = useChatDialog()
 
@@ -44,20 +40,18 @@ export function useThreeDotMenu(
       id: chatId,
       canSend,
     } = selectedChat
-    const isGroup = selectedChat.chatType === C.DC_CHAT_TYPE_GROUP
+    const isGroup = selectedChat.chatType === 'Group'
 
     const onLeaveGroup = () =>
-      selectedChat && openLeaveChatDialog(accountId, chatId)
+      selectedChat && openLeaveGroupOrChannelDialog(accountId, chatId, isGroup)
 
     const onBlockContact = () =>
       openBlockFirstContactOfChatDialog(accountId, selectedChat)
 
     const onDeleteChat = () =>
-      openDeleteChatDialog(accountId, selectedChat, chatId)
+      openDeleteChatsDialog(accountId, [selectedChat], chatId)
 
     const onUnmuteChat = () => unmuteChat(accountId, chatId)
-
-    const onChatAudit = () => openChatAuditDialog(selectedChat)
 
     const onClearChat = () => openClearChatDialog(accountId, chatId)
 
@@ -70,6 +64,10 @@ export function useThreeDotMenu(
       {
         label: tx('search_in_chat'),
         action: () => {
+          // Same as in with `KeybindAction.ChatList_SearchInChat`
+          //
+          // TODO improvement a11y: maybe we can add `aria-keyshortcuts=`
+          // to this menu item?
           window.__chatlistSetSearch?.('', selectedChat.id)
           setTimeout(
             () =>
@@ -78,17 +76,15 @@ export function useThreeDotMenu(
           )
         },
       },
+      // See https://github.com/deltachat/deltachat-android/blob/fd4a377752cc6778f161590fde2f9ab29c5d3011/src/main/java/org/thoughtcrime/securesms/ConversationActivity.java#L445-L447.
       canSend &&
-        selectedChat.chatType !== C.DC_CHAT_TYPE_MAILINGLIST && {
+        selectedChat.chatType !== 'InBroadcast' &&
+        selectedChat.chatType !== 'Mailinglist' &&
+        selectedChat.isEncrypted && {
           label: tx('ephemeral_messages'),
           action: onDisappearingMessages,
         },
-      !(isSelfTalk || isDeviceChat) &&
-        settingsStore !== null &&
-        settingsStore.desktopSettings.enableChatAuditLog && {
-          label: tx('menu_chat_audit_log'),
-          action: onChatAudit,
-        },
+      { type: 'separator' },
       !selectedChat.isMuted
         ? {
             label: tx('menu_mute'),
@@ -107,14 +103,14 @@ export function useThreeDotMenu(
                 },
               },
               {
-                label: tx('mute_for_two_hours'),
+                label: tx('mute_for_eight_hours'),
                 action: () => {
                   BackendRemote.rpc.setChatMuteDuration(
                     accountId,
                     selectedChat.id,
                     {
                       kind: 'Until',
-                      duration: Timespans.ONE_HOUR_IN_SECONDS * 2,
+                      duration: Timespans.ONE_HOUR_IN_SECONDS * 8,
                     }
                   )
                 },
@@ -176,13 +172,15 @@ export function useThreeDotMenu(
               unselectChat()
             },
           },
+      { type: 'separator' },
       !isGroup &&
         !(isSelfTalk || isDeviceChat) && {
           label: tx('menu_block_contact'),
           action: onBlockContact,
         },
       isGroup &&
-        selfInGroup && {
+        selfInGroup &&
+        !selectedChat.isContactRequest && {
           label: tx('menu_leave_group'),
           action: onLeaveGroup,
         },
@@ -197,23 +195,6 @@ export function useThreeDotMenu(
     ]
   }
 
-  if (mode == 'gallery' && settingsStore?.desktopSettings) {
-    const { galleryImageKeepAspectRatio } = settingsStore.desktopSettings
-    menu = [
-      {
-        label: tx(
-          galleryImageKeepAspectRatio ? 'square_grid' : 'aspect_ratio_grid'
-        ),
-        action: async () => {
-          await SettingsStoreInstance.effect.setDesktopSetting(
-            'galleryImageKeepAspectRatio',
-            !galleryImageKeepAspectRatio
-          )
-        },
-      },
-    ]
-  }
-
   return (event: React.MouseEvent<any, MouseEvent>) => {
     const threeDotButtonElement = document.querySelector(
       '#three-dot-menu-button'
@@ -222,7 +203,7 @@ export function useThreeDotMenu(
     const boundingBox = threeDotButtonElement.getBoundingClientRect()
 
     const [x, y] = [
-      boundingBox.x + boundingBox.width - 3,
+      writingDirection === 'rtl' ? 0 : boundingBox.x + boundingBox.width - 3,
       boundingBox.y + boundingBox.height - 2,
     ]
     event.preventDefault() // prevent default runtime context menu from opening
@@ -231,6 +212,7 @@ export function useThreeDotMenu(
       x,
       y,
       items: menu,
+      ariaAttrs: { 'aria-labelledby': 'three-dot-menu-button' },
     })
   }
 }

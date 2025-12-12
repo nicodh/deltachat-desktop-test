@@ -1,9 +1,12 @@
+// When you change this file, then run `pnpm migration-test` afterwards
+// to ensure that it still works with all old formats
+
 import { startDeltaChat } from '@deltachat/stdio-rpc-server'
 import { existsSync, lstatSync } from 'fs'
 import { join } from 'path'
 import { Logger } from '../../../shared/logger.js'
 import { mkdir, readdir, rename, rm, rmdir, stat } from 'fs/promises'
-import { DcEvent } from '@deltachat/jsonrpc-client'
+import type { DcEvent, RawClient } from '@deltachat/jsonrpc-client'
 
 /**
  *
@@ -161,7 +164,7 @@ export async function migrateAccountsIfNeeded(
       try {
         try {
           await rm(join(oldFolder, '.DS_Store'))
-        } catch (error) {
+        } catch (_error) {
           /* ignore */
         }
         await rmdir(oldFolder)
@@ -176,5 +179,41 @@ export async function migrateAccountsIfNeeded(
     tmpDC?.off('ALL', eventLogger)
     tmpDC?.close()
     throw err
+  }
+}
+
+/**
+ * The setting "Delete messages from server" is not
+ * editable for chatmail instances anymore since v2.28.0.
+ * So it has to be disabled for all chatmail accounts
+ */
+export async function disableDeleteFromServerConfig(
+  rpc: RawClient,
+  log: Logger
+) {
+  // Disable delete_server_after for chatmail accounts
+  try {
+    const accountIds = await rpc.getAllAccountIds()
+    for (const accountId of accountIds) {
+      const { is_chatmail, delete_server_after } = await rpc.batchGetConfig(
+        accountId,
+        ['is_chatmail', 'delete_server_after']
+      )
+      if (
+        is_chatmail === '1' &&
+        delete_server_after !== null &&
+        delete_server_after !== '0'
+      ) {
+        log.info(
+          `Disabling delete_server_after for chatmail account ${accountId}`
+        )
+        await rpc.setConfig(accountId, 'delete_server_after', null)
+      }
+    }
+  } catch (error) {
+    log.error(
+      'Failed to disable delete_server_after for chatmail accounts',
+      error
+    )
   }
 }

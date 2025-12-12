@@ -32,6 +32,7 @@ export default function OkCancelFooterAction({
           {cancelLabel}
         </FooterActionButton>
         <FooterActionButton
+          styling='primary'
           disabled={disableOK}
           data-testid='ok'
           onClick={onOk}

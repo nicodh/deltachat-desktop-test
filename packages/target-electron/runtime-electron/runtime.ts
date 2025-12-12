@@ -1,6 +1,7 @@
 // This needs to be injected / imported before the frontend script
 
 import {
+  AutostartState,
   DcNotification,
   DcOpenWebxdcParameters,
   DesktopSettingsType,
@@ -11,7 +12,12 @@ import {
 } from '@deltachat-desktop/shared/shared-types.js'
 import '@deltachat-desktop/shared/global.d.ts'
 
-import { Runtime } from '@deltachat-desktop/runtime-interface'
+import {
+  DropListener,
+  MediaAccessStatus,
+  MediaType,
+  Runtime,
+} from '@deltachat-desktop/runtime-interface'
 import { BaseDeltaChat, yerpc } from '@deltachat/jsonrpc-client'
 
 import type { dialog, app, IpcRenderer, webUtils } from 'electron'
@@ -34,14 +40,51 @@ const { BaseTransport } = yerpc
 
 let logJsonrpcConnection = false
 
+const idToRequestMap = new Map<
+  yerpc.Message['id'],
+  { message: yerpc.Message; sentAt: number }
+>()
+
 class ElectronTransport extends BaseTransport {
   constructor(private callCounterFunction: (label: string) => void) {
     super()
     ipcBackend.on('json-rpc-message', (_ev: any, response: any) => {
       const message: yerpc.Message = JSON.parse(response)
       if (logJsonrpcConnection) {
-        /* ignore-console-log */
-        console.debug('%c▼ %c[JSONRPC]', 'color: red', 'color:grey', message)
+        const responseAt = performance.now()
+        const request = idToRequestMap.get(message.id)
+        idToRequestMap.delete(message.id)
+
+        const duration =
+          request != undefined
+            ? (responseAt - request.sentAt).toFixed(3)
+            : undefined
+
+        let requestToLog = undefined
+        const responseToLog = { ...message }
+        delete responseToLog.jsonrpc
+        if (request != undefined) {
+          delete responseToLog.id
+
+          requestToLog = { ...request.message }
+          delete requestToLog.jsonrpc
+          // Let's keep the ID so that the respective console log
+          // for the "request sent" can be found.
+          // delete requestToLog.id
+        }
+
+        // eslint-disable-next-line no-console
+        console.debug(
+          '%c▼ %c[JSONRPC]',
+          'color: red',
+          'color:grey',
+          `${duration} ms`,
+          requestToLog,
+          '->\n',
+          (responseToLog as yerpc.Response)?.result ??
+            (responseToLog as yerpc.Response)?.error ??
+            responseToLog
+        )
       }
       this._onmessage(message)
     })
@@ -50,7 +93,15 @@ class ElectronTransport extends BaseTransport {
     const serialized = JSON.stringify(message)
     ipcBackend.invoke('json-rpc-request', serialized)
     if (logJsonrpcConnection) {
-      /* ignore-console-log */
+      const sentAt = performance.now()
+      idToRequestMap.set(message.id, { message, sentAt })
+      // Just in case we don't receive the response within 60 seconds,
+      // to avoid a memory leak.
+      setTimeout(() => {
+        idToRequestMap.delete(message.id)
+      }, 60000)
+
+      // eslint-disable-next-line no-console
       console.debug('%c▲ %c[JSONRPC]', 'color: green', 'color:grey', message)
       if ((message as any)['method']) {
         this.callCounterFunction((message as any).method)
@@ -70,11 +121,16 @@ class ElectronDeltachat extends BaseDeltaChat<ElectronTransport> {
 }
 
 class ElectronRuntime implements Runtime {
+  onDrop: DropListener | null = null
+  setDropListener(onDrop: DropListener | null) {
+    this.onDrop = onDrop
+  }
   onResumeFromSleep: (() => void) | undefined
   onWebxdcSendToChat:
     | ((
         file: { file_name: string; file_content: string } | null,
-        text: string | null
+        text: string | null,
+        account?: number
       ) => void)
     | undefined
   onOpenQrUrl: ((url: string) => void) | undefined
@@ -84,13 +140,14 @@ class ElectronRuntime implements Runtime {
   onDragFileOut(file: string): void {
     ipcBackend.send('ondragstart', file)
   }
-  isDroppedFileFromOutside(file: File): boolean {
-    const path = getPathForFile(file)
-    const forbiddenPathRegEx = /DeltaChat\/.+?\.sqlite-blobs\//gi
-    return !forbiddenPathRegEx.test(path.replace('\\', '/'))
+  isDroppedFileFromOutside(file: string): boolean {
+    // ".sqlite-blobs" is the old folder name that could still be there in old accounts
+    const forbiddenPathRegEx = /DeltaChat\/.+?(\.sqlite-blobs|\.db-blobs)\//gi
+    return !forbiddenPathRegEx.test(file.replaceAll('\\', '/'))
   }
   onThemeUpdate: (() => void) | undefined
   onChooseLanguage: ((locale: string) => Promise<void>) | undefined
+  onToggleNotifications: (() => void) | undefined
   emitUIFullyReady(): void {
     ipcBackend.send('frontendReady')
   }
@@ -103,8 +160,8 @@ class ElectronRuntime implements Runtime {
     return new ElectronDeltachat(callCounterFunction)
   }
   openMessageHTML(
-    window_id: string,
     accountId: number,
+    messageId: number,
     isContactRequest: boolean,
     subject: string,
     sender: string,
@@ -113,8 +170,8 @@ class ElectronRuntime implements Runtime {
   ): void {
     ipcBackend.invoke(
       'openMessageHTML',
-      window_id,
       accountId,
+      messageId,
       isContactRequest,
       subject,
       sender,
@@ -140,6 +197,9 @@ class ElectronRuntime implements Runtime {
   notifyWebxdcInstanceDeleted(accountId: number, instanceId: number): void {
     ipcBackend.invoke('webxdc:instance-deleted', accountId, instanceId)
   }
+  startOutgoingVideoCall(accountId: number, chatId: number): Promise<void> {
+    return ipcBackend.invoke('startOutgoingVideoCall', accountId, chatId)
+  }
   openMapsWebxdc(accountId: number, chatId?: number | undefined): void {
     ipcBackend.invoke('open-maps-webxdc', accountId, chatId)
   }
@@ -161,15 +221,6 @@ class ElectronRuntime implements Runtime {
   getActiveTheme(): Promise<{ theme: Theme; data: string } | null> {
     return ipcBackend.invoke('themes.getActiveTheme')
   }
-  async clearWebxdcDOMStorage(accountId: number): Promise<void> {
-    ipcBackend.invoke('webxdc.clearWebxdcDOMStorage', accountId)
-  }
-  getWebxdcDiskUsage(accountId: number): Promise<{
-    total_size: number
-    data_size: number
-  }> {
-    return ipcBackend.invoke('webxdc.getWebxdcDiskUsage', accountId)
-  }
   async writeClipboardToTempFile(_name: string | undefined): Promise<string> {
     return ipcBackend.invoke('app.writeClipboardToTempFile')
   }
@@ -178,6 +229,16 @@ class ElectronRuntime implements Runtime {
   }
   writeTempFile(name: string, content: string): Promise<string> {
     return ipcBackend.invoke('app.writeTempFile', name, content)
+  }
+  copyFileToInternalTmpDir(
+    fileName: string,
+    sourcePath: string
+  ): Promise<string> {
+    return ipcBackend.invoke(
+      'app.copyFileToInternalTmpDir',
+      fileName,
+      sourcePath
+    )
   }
   removeTempFile(path: string): Promise<void> {
     return ipcBackend.invoke('app.removeTempFile', path)
@@ -199,8 +260,8 @@ class ElectronRuntime implements Runtime {
   clearAllNotifications(): void {
     ipcBackend.invoke('notifications.clearAll')
   }
-  clearNotifications(chatId: number): void {
-    ipcBackend.invoke('notifications.clear', chatId)
+  clearNotifications(accountId: number, chatId: number): void {
+    ipcBackend.invoke('notifications.clear', accountId, chatId)
   }
   setBadgeCounter(value: number): void {
     ipcBackend.invoke('app.setBadgeCountAndTrayIconIndicator', value)
@@ -266,6 +327,21 @@ class ElectronRuntime implements Runtime {
       return blob
     }
   }
+  transformStickerURL(sticker_path: string): string {
+    /**
+     * Some entities that are valid path parts but would be decoded by the browser (like %, #, ? ) etc.
+     * so we need to be encode them before passing the path to the browser:
+     * a path like "folder%20name/file" would be decoded to "folder name/file"
+     *
+     * Since Window paths have backslashes these will be encoded to %5C but since the browser on windows
+     * does not decode them back we have to decode those before passing the path to the browser
+     */
+    const a = encodeURI(`file://${sticker_path}`)
+    return a
+      .replace(/[?#]/g, encodeURIComponent) // special case # and ? are not encoded by encodeURI but "ignored" in URLs
+      .replace(/%5C/g, decodeURIComponent) // restore encoded backslashes (for Windows)
+  }
+
   async showOpenFileDialog(
     options: RuntimeOpenDialogOptions
   ): Promise<string[]> {
@@ -275,7 +351,10 @@ class ElectronRuntime implements Runtime {
     return filePaths
   }
   openLink(link: string): void {
-    if (link.startsWith('http:') || link.startsWith('https:')) {
+    if (
+      link.toLowerCase().startsWith('http:') ||
+      link.toLowerCase().startsWith('https:')
+    ) {
       ipcBackend.invoke('electron.shell.openExternal', link)
     } else {
       this.log.error('tried to open a non http/https external link', {
@@ -338,12 +417,12 @@ class ElectronRuntime implements Runtime {
     )
     ipcBackend.on('chooseLanguage', (_ev, locale) => {
       this.onChooseLanguage?.(locale)
+      ipcBackend.send('reload-main-window')
     })
     ipcBackend.on('theme-update', () => this.onThemeUpdate?.())
     ipcBackend.on('showAboutDialog', () => this.onShowDialog?.('about'))
-    ipcBackend.on(
-      'showKeybindingsDialog',
-      () => this.onShowDialog?.('keybindings')
+    ipcBackend.on('showKeybindingsDialog', () =>
+      this.onShowDialog?.('keybindings')
     )
     ipcBackend.on('showSettingsDialog', () => this.onShowDialog?.('settings'))
     ipcBackend.on('open-url', (_ev, url) => this.onOpenQrUrl?.(url))
@@ -352,10 +431,88 @@ class ElectronRuntime implements Runtime {
       (
         _ev,
         file: { file_name: string; file_content: string } | null,
-        text: string | null
-      ) => this.onWebxdcSendToChat?.(file, text)
+        text: string | null,
+        account?: number
+      ) => this.onWebxdcSendToChat?.(file, text, account)
     )
     ipcBackend.on('onResumeFromSleep', () => this.onResumeFromSleep?.())
+
+    document.body.addEventListener('drop', async e => {
+      // react does sth. to the even, so that it gets circular references, so we can not simply log it because our logging system uses JSON.stringify and that throws an error with circular references
+      this.log.debug('drop event')
+      if (!this.onDrop) {
+        this.log.warn('file dropped, but no drop handler set')
+        return
+      }
+      const dropTarget = this.onDrop.elementRef.current
+      if (!dropTarget) {
+        this.log.warn('file dropped, but drop target is unset')
+        return
+      }
+      if (!e.dataTransfer) {
+        this.log.debug('dropped, but no data transfer')
+        return
+      }
+      if (!(e.target && dropTarget.contains(e.target as HTMLElement))) {
+        this.log.debug(
+          'file dropped, but it was dropped outside of the drop target element'
+        )
+        return
+      }
+      e.preventDefault()
+      e.stopPropagation()
+      const writeTempFileFromFile = (file: File) => {
+        if (file.size > 1e8 /* 100mb */) {
+          this.log.warn(
+            `dropped file is bigger than 100mb ${file.name} ${file.size} ${file.type}`
+          )
+        }
+        return new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = _ => {
+            if (reader.result === null) {
+              return reject(new Error('result empty'))
+            }
+            if (typeof reader.result !== 'string') {
+              return reject(new Error('wrong type'))
+            }
+            const base64Content = reader.result.split(',')[1]
+            this.writeTempFileFromBase64(file.name, base64Content)
+              .then(tempUrl => {
+                resolve(tempUrl)
+              })
+              .catch(err => {
+                reject(err)
+              })
+          }
+          reader.onerror = err => {
+            reject(err)
+          }
+          reader.readAsDataURL(file)
+        })
+      }
+
+      const paths: string[] = []
+      for (const file of e.dataTransfer.files) {
+        const path = getPathForFile(file)
+        this.log.info({ path })
+        // TODO this doesn't work propertly when dropping images
+        // from inside Delta Chat to inside Delta Chat:
+        // `getPathForFile` returns an empty string then.
+        // It's not clear whether this only happens with files
+        // dragged from inside Delta Chat,
+        // i.e. we probably can't ignore all such files.
+        if (path.length !== 0 && !this.isDroppedFileFromOutside(path)) {
+          this.log.warn(
+            'Prevented a file from being sent again while dragging it out',
+            path
+          )
+        } else {
+          paths.push(await writeTempFileFromFile(file))
+        }
+      }
+      this.onDrop.handler(paths)
+    })
 
     return Promise.resolve()
   }
@@ -373,6 +530,20 @@ class ElectronRuntime implements Runtime {
   }
   getConfigPath(): string {
     return ipcBackend.sendSync('get-config-path')
+  }
+  getAutostartState(): Promise<AutostartState> {
+    // TODO - see https://github.com/deltachat/deltachat-desktop/issues/2518
+    return Promise.resolve({
+      isSupported: false,
+      isRegistered: false,
+    })
+  }
+  checkMediaAccess(mediaType: MediaType): Promise<MediaAccessStatus> {
+    return ipcBackend.invoke('checkMediaAccess', mediaType)
+  }
+  // undefined is returned if the platform does not support askForMediaAccess
+  askForMediaAccess(mediaType: MediaType): Promise<boolean | undefined> {
+    return ipcBackend.invoke('askForMediaAccess', mediaType)
   }
 }
 

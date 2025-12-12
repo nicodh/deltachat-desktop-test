@@ -28,6 +28,7 @@ export class CrashScreen extends React.Component<
     })
   }
 
+  // FYI we also have `unknownErrorToString`.
   errorToText(error: object | Error) {
     if (error instanceof Error) {
       // TODO parse the stack and map the sourcemap to provide a useful stacktrace
@@ -61,8 +62,12 @@ export class CrashScreen extends React.Component<
             )
           </h2>
           <p>
-            <button onClick={_ => runtime.reloadWebContent()}>Reload</button>
-            <button onClick={_ => runtime.openLogFile()}>Open Logfile</button>
+            <button type='button' onClick={_ => runtime.reloadWebContent()}>
+              Reload
+            </button>
+            <button type='button' onClick={_ => runtime.openLogFile()}>
+              Open Logfile
+            </button>
           </p>
           <p>
             <pre className='error-details'>{this.state.error}</pre>

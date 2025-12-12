@@ -1,8 +1,7 @@
 import { BackendRemote } from '../backend-com'
-import { debouncedUpdateBadgeCounter } from '../system-integration/badge-counter'
 import { clearNotificationsForChat } from '../system-integration/notifications'
 
-import type { T } from '@deltachat/jsonrpc-client'
+import { C, type T } from '@deltachat/jsonrpc-client'
 
 /**
  * Finds basic info, like contact id and the related chat ID of a contact based
@@ -64,7 +63,11 @@ export async function unmuteChat(accountId: number, chatId: number) {
 export function markChatAsSeen(accountId: number, chatId: number) {
   // Mark all messages in chat as "seen" in core backend
   BackendRemote.rpc.marknoticedChat(accountId, chatId)
-  debouncedUpdateBadgeCounter()
+
+  // We could `debouncedUpdateBadgeCounter()` here,
+  // but it's not necessary, because we listen for `MsgsNoticed` anyway,
+  // and this function doesn't actually always affect
+  // the badge counter, e.g. when all messages in the chat are already noticed.
 
   // Remove potential system notifications for this chat
   clearNotificationsForChat(accountId, chatId)
@@ -113,19 +116,12 @@ export async function areAllContactsVerified(
 export async function getDeviceChatId(
   accountId: number
 ): Promise<number | null> {
-  const chatIds = await BackendRemote.rpc.getChatlistEntries(
+  // This assumes that the chat with `C.DC_CONTACT_ID_DEVICE`
+  // is actually a one-to-one chat.
+  const chatId = await BackendRemote.rpc.getChatIdByContactId(
     accountId,
-    null,
-    null,
-    null
+    C.DC_CONTACT_ID_DEVICE
   )
 
-  for (const chatId of chatIds) {
-    const chat = await BackendRemote.rpc.getFullChatById(accountId, chatId)
-    if (chat.isDeviceChat) {
-      return chatId
-    }
-  }
-
-  return null
+  return chatId
 }

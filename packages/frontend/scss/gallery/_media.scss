@@ -1,12 +1,13 @@
+@use '../mixins';
+
 $tab-height: 46px;
 
 .media-view {
-  width: calc(100% - var(--chat-list-width, 30%));
   background-color: var(--galleryBg);
-  padding-left: 10px;
+  padding-inline-start: 10px;
   overflow: hidden;
   min-width: 200px;
-  height: 100%;
+  flex-grow: 1;
   display: flex;
   flex-direction: column;
 
@@ -14,11 +15,12 @@ $tab-height: 46px;
     display: flex;
     justify-content: space-between;
     gap: 30px;
+    margin-inline-start: 10px;
 
     overflow-x: auto;
 
     .tab-item {
-      @include button-reset;
+      @include mixins.button-reset;
 
       font-size: 1.1rem;
       padding-bottom: 6px;
@@ -32,7 +34,7 @@ $tab-height: 46px;
         flex-grow: 1;
         text-align: end;
         align-self: center;
-        margin-right: 12px;
+        margin-inline-end: 12px;
         font-size: 18px;
         color: var(--summary-text-color);
         white-space: nowrap;
@@ -61,17 +63,6 @@ $tab-height: 46px;
       }
     }
 
-    & > .loading-errors {
-      background-color: rgb(255, 90, 90);
-      color: black;
-      padding: 14px;
-      font-size: larger;
-      ul {
-        font-size: medium;
-        margin: 0;
-      }
-    }
-
     &.gallery-image-object-fit_contain {
       --gallery-image-object-fit: contain;
     }
@@ -87,6 +78,13 @@ $tab-height: 46px;
       background: transparent;
       color: var(--textPrimary);
       outline: none;
+      margin-inline-end: 20px;
     }
   }
+}
+
+.image-context-menu-container:focus-visible {
+  // This element gets focused by default when you open
+  // the fullscreen media. Outlining it is unnecessary.
+  outline: none;
 }

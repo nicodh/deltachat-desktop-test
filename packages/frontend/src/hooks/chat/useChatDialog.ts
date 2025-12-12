@@ -1,6 +1,5 @@
 import { useCallback } from 'react'
 
-import ChatAuditLogDialog from '../../components/dialogs/ChatAuditLogDialog'
 import { Props, EncryptionInfo } from '../../components/dialogs/EncryptionInfo'
 import MuteChat from '../../components/dialogs/MuteChat'
 import useChat from './useChat'
@@ -10,6 +9,9 @@ import useTranslationFunction from '../useTranslationFunction'
 import { BackendRemote, EffectfulBackendActions } from '../../backend-com'
 
 import type { T } from '@deltachat/jsonrpc-client'
+import { getLogger } from '@deltachat-desktop/shared/logger'
+
+const log = getLogger('useChatDialog')
 
 type ChatListItem = T.ChatListItemFetchResult & { kind: 'ChatListItem' }
 
@@ -17,8 +19,9 @@ export default function useChatDialog() {
   const tx = useTranslationFunction()
   const openConfirmationDialog = useConfirmationDialog()
   const { openDialog } = useDialog()
-  const { chat, selectChat, unselectChat } = useChat()
+  const { chatWithLinger, selectChat, unselectChat } = useChat()
 
+  const chatContactIds = chatWithLinger?.contactIds
   const openBlockContactById = useCallback(
     async (accountId: number, dmChatContact: number) => {
       const hasUserConfirmed = await openConfirmationDialog({
@@ -29,16 +32,16 @@ export default function useChatDialog() {
 
       if (hasUserConfirmed) {
         if (
-          chat?.contactIds &&
-          chat.contactIds.length === 1 &&
-          chat.contactIds[0] === dmChatContact
+          chatContactIds &&
+          chatContactIds.length === 1 &&
+          chatContactIds[0] === dmChatContact
         ) {
           unselectChat()
         }
         await BackendRemote.rpc.blockContact(accountId, dmChatContact)
       }
     },
-    [openConfirmationDialog, tx, unselectChat, chat?.contactIds]
+    [openConfirmationDialog, tx, unselectChat, chatContactIds]
   )
 
   /**
@@ -57,13 +60,6 @@ export default function useChatDialog() {
       return openBlockContactById(accountId, dmChatContact)
     },
     [openBlockContactById]
-  )
-
-  const openChatAuditDialog = useCallback(
-    (selectedChat: T.FullChat) => {
-      openDialog(ChatAuditLogDialog, { selectedChat })
-    },
-    [openDialog]
   )
 
   const openClearChatDialog = useCallback(
@@ -93,23 +89,42 @@ export default function useChatDialog() {
     [openConfirmationDialog, selectChat, tx, unselectChat]
   )
 
-  const openDeleteChatDialog = useCallback(
+  const openDeleteChatsDialog = useCallback(
     async (
       accountId: number,
-      chat: T.FullChat | ChatListItem,
+      /**
+       * Must be of non-0 length.
+       */
+      chats: Array<Pick<T.BasicChat | ChatListItem, 'id' | 'name'>>,
       selectedChatId: number | null
     ) => {
+      if (chats.length === 0) {
+        log.error('openDeleteChatsDialog called with 0 chats')
+        return
+      }
+
       const hasUserConfirmed = await openConfirmationDialog({
-        message: tx('ask_delete_named_chat', chat.name),
+        message:
+          chats.length === 1
+            ? tx('ask_delete_named_chat', chats[0].name)
+            : tx('ask_delete_chat', chats.length.toString(), {
+                quantity: chats.length,
+              }) +
+              '\n\n' +
+              chats.map(c => c.name).join('\n'),
         confirmLabel: tx('delete'),
         isConfirmDanger: true,
       })
 
-      if (hasUserConfirmed && chat.id) {
-        await EffectfulBackendActions.deleteChat(accountId, chat.id)
-        if (selectedChatId === chat.id) {
-          unselectChat()
-        }
+      if (hasUserConfirmed) {
+        await Promise.all(
+          chats.map(async chat => {
+            if (selectedChatId === chat.id) {
+              unselectChat()
+            }
+            await EffectfulBackendActions.deleteChat(accountId, chat.id)
+          })
+        )
       }
     },
     [openConfirmationDialog, tx, unselectChat]
@@ -122,11 +137,13 @@ export default function useChatDialog() {
     [openDialog]
   )
 
-  const openLeaveChatDialog = useCallback(
-    async (accountId: number, chatId: number) => {
+  const openLeaveGroupOrChannelDialog = useCallback(
+    async (accountId: number, chatId: number, isGroup: boolean) => {
       const hasUserConfirmed = await openConfirmationDialog({
         message: tx('ask_leave_group'),
-        confirmLabel: tx('menu_leave_group'),
+        confirmLabel: isGroup
+          ? tx('menu_leave_group')
+          : tx('menu_leave_channel'),
         isConfirmDanger: true,
         noMargin: true,
       })
@@ -148,11 +165,10 @@ export default function useChatDialog() {
   return {
     openBlockFirstContactOfChatDialog,
     openBlockContactById,
-    openChatAuditDialog,
     openClearChatDialog,
-    openDeleteChatDialog,
+    openDeleteChatsDialog,
     openEncryptionInfoDialog,
-    openLeaveChatDialog,
+    openLeaveGroupOrChannelDialog,
     openMuteChatDialog,
   }
 }

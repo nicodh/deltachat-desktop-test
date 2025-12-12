@@ -2,10 +2,9 @@
 import applicationConfig from 'application-config'
 if (process.env.NODE_ENV !== 'production') {
   try {
-    const { config } = await import('dotenv')
-    config()
+    process.loadEnvFile?.() // loads ./, falls back on cwd
   } catch (e) {
-    /* ignore-console-log */
+    // eslint-disable-next-line no-console
     console.error('Failed to load .env file', e)
   }
 }
@@ -17,7 +16,7 @@ import { join } from 'path'
 if (process.env.DC_TEST_DIR) {
   appConfig.filePath = join(process.env.DC_TEST_DIR, 'config.json')
 } else if (process.env.PORTABLE_EXECUTABLE_DIR) {
-  /* ignore-console-log */
+  // eslint-disable-next-line no-console
   console.log('Running in Portable Mode', process.env.PORTABLE_EXECUTABLE_DIR)
   appConfig.filePath = join(
     process.env.PORTABLE_EXECUTABLE_DIR,

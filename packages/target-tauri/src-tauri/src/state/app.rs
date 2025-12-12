@@ -1,29 +1,46 @@
-use std::{
-    path::PathBuf,
-    sync::{Arc, Mutex},
-    time::SystemTime,
-};
+use std::{path::PathBuf, sync::Arc, time::SystemTime};
 
 use anyhow::{bail, Context};
-use tauri::{AppHandle, Manager};
-
 use log::info;
+use tauri::AppHandle;
+
+#[cfg(desktop)]
+use tauri::Manager;
+use tokio::sync::Mutex;
+
+use crate::{
+    i18n::get_all_languages,
+    temp_file::{clear_tmp_folder, create_tmp_folder},
+};
 
 #[derive(Default)]
 pub(crate) struct InnerAppState {
     pub(crate) ui_ready: bool,
     pub(crate) ui_frontend_ready: bool,
+    pub(crate) deeplink: Option<String>,
+}
+
+impl InnerAppState {
+    pub(crate) fn new() -> Arc<Mutex<Self>> {
+        Arc::new(Mutex::new(InnerAppState::default()))
+    }
 }
 
 pub(crate) struct AppState {
     pub(crate) inner: Arc<Mutex<InnerAppState>>,
     pub(crate) startup_timestamp: SystemTime,
     pub(crate) current_log_file_path: String,
+
+    // caching here, because the menu building is sync,
+    // but the function to get all languages is async
+    /// Vec of all supported languages: (language_code, language_display_name)
+    pub(crate) all_languages_for_menu: Vec<(String, String)>,
 }
 
 impl AppState {
     pub(crate) async fn try_new(
         app: &tauri::App,
+        inner: Arc<Mutex<InnerAppState>>,
         startup_timestamp: SystemTime,
     ) -> anyhow::Result<Self> {
         let handle = app.handle().clone();
@@ -32,10 +49,19 @@ impl AppState {
 
         let current_log_file_path = get_current_log_file_task.await??;
 
+        #[cfg(not(target_os = "android"))]
+        {
+            create_tmp_folder(app.handle()).await?;
+            clear_tmp_folder(app.handle()).await?;
+        }
+
+        let all_languages_for_menu = get_all_languages(app.handle()).await?;
+
         Ok(Self {
-            inner: Arc::new(Mutex::new(InnerAppState::default())),
+            inner,
             startup_timestamp,
             current_log_file_path,
+            all_languages_for_menu,
         })
     }
 

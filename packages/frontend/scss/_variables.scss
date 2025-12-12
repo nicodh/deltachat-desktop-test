@@ -1,10 +1,13 @@
-/* 'EmojiMart' represents the general emoji font of the app, themes may redefine it */
-$emojifonts: 'EmojiMart', 'Apple Color Emoji', NotoEmoji;
+:root {
+  /* 'EmojiMart' represents the general emoji font of the app, themes may redefine it */
+  --emojifonts: 'EmojiMart', 'Apple Color Emoji', NotoEmoji;
 
-$fonts-default: Roboto, $emojifonts, 'Helvetica Neue', Arial, Helvetica,
-  NotoMono, sans-serif;
+  --fonts-default:
+    Roboto, var(--emojifonts), 'Helvetica Neue', Arial, Helvetica, NotoMono,
+    sans-serif;
 
-$fonts-system: system-ui, $fonts-default;
+  --fonts-system: system-ui, var(--fonts-default);
+}
 
 /* Theming Colors */
 
@@ -25,6 +28,9 @@ $border-radius: 5px;
 
 $font-size: 14px;
 
+// Breakpoint for messages/images in message list
+$breakpoint-messagelist: 900px;
+
 // Get these keys via: `map-get($z-index, keyname)`
 $z-index: (
   // Local Scopes
@@ -32,6 +38,7 @@ $z-index: (
   chatlist-scope-floating-action-button: 1,
   jump-down-button-scope-counter: 1,
   account-list-sidebar-scope-account-badge: 1,
+  account-list-sidebar-scope-sticky-account: 1,
 
   // Global Scope
   // ============
@@ -47,3 +54,5 @@ $z-index: (
 
 // setting z-index to 0 creates a new scope for children without changing the ordering of the parent element
 $z-index-new-local-scope: 0;
+
+$default-dialog-width: 500px;

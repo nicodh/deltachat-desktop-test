@@ -13,8 +13,6 @@ import { runPostponedFunctions } from './onready'
 import { I18nContext } from './contexts/I18nContext'
 
 export default function App(_props: any) {
-  const [localeData, setLocaleData] = useState<LocaleData | null>(null)
-
   useEffect(() => {
     runtime.emitUIReady()
     window.addEventListener('keydown', function (ev: KeyboardEvent) {
@@ -48,11 +46,21 @@ export default function App(_props: any) {
   useLayoutEffect(() => {
     startBackendLogging()
     runPostponedFunctions()
-    ;(async () => {
-      const desktop_settings = await runtime.getDesktopSettings()
-      await reloadLocaleData(desktop_settings.locale || 'en')
-    })()
   }, [])
+
+  return (
+    <CrashScreen>
+      <ThemeContextWrapper>
+        <I18nContextWrapper>
+          <ScreenController />
+        </I18nContextWrapper>
+      </ThemeContextWrapper>
+    </CrashScreen>
+  )
+}
+
+function I18nContextWrapper({ children }: { children: React.ReactElement }) {
+  const [localeData, setLocaleData] = useState<LocaleData | null>(null)
 
   async function reloadLocaleData(locale: string) {
     const localeData = await runtime.getLocaleData(locale)
@@ -63,6 +71,13 @@ export default function App(_props: any) {
     updateCoreStrings()
   }
 
+  useLayoutEffect(() => {
+    ;(async () => {
+      const desktop_settings = await runtime.getDesktopSettings()
+      await reloadLocaleData(desktop_settings.locale || 'en')
+    })()
+  }, [])
+
   useEffect(() => {
     runtime.onChooseLanguage = async (locale: string) => {
       await runtime.setLocale(locale)
@@ -72,16 +87,17 @@ export default function App(_props: any) {
 
   if (!localeData) return null
   return (
-    <CrashScreen>
-      <ThemeContextWrapper>
-        <I18nContext.Provider value={window.static_translate}>
-          <ScreenController />
-        </I18nContext.Provider>
-      </ThemeContextWrapper>
-    </CrashScreen>
+    <I18nContext.Provider
+      value={{
+        tx: window.static_translate,
+        writingDirection: window.localeData.dir,
+      }}
+    >
+      <div dir={window.localeData.dir}>{children}</div>
+    </I18nContext.Provider>
   )
 }
-function ThemeContextWrapper({ children }: { children: React.ReactChild }) {
+function ThemeContextWrapper({ children }: { children: React.ReactElement }) {
   /** on each theme change this var changes */
   const [theme_rand, setThemeRand] = useState(0)
   useEffect(() => {
@@ -140,7 +156,7 @@ export function startBackendLogging() {
         data = event_clone
       }
 
-      /* ignore-console-log */
+      // eslint-disable-next-line no-console
       console.debug(
         `%c${isActiveAccount ? '👤' : '👻'}${accountId}%c📡 ${event.kind}`,
         `background:${accountColor};border-radius:8px 0 0 8px;padding:2px 4px;`,

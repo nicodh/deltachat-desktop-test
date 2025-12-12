@@ -9,15 +9,18 @@ import { getConfiguredAccounts } from '../../../backend/account'
 import { BackendRemote, EffectfulBackendActions } from '../../../backend-com'
 import useDialog from '../../../hooks/dialog/useDialog'
 import AlertDialog from '../../dialogs/AlertDialog'
-import { getLogger } from '@deltachat-desktop/shared/logger'
-
-const log = getLogger('renderer/components/screens/WelcomScreen')
+import { unknownErrorToString } from '../../helpers/unknownErrorToString'
 
 type Props = {
   selectedAccountId: number
   onUnSelectAccount: () => Promise<void>
   onExitWelcomeScreen: () => Promise<void>
 }
+
+/**
+ * Welcomescreen is shown to users when they start the app
+ * for the first time or when they have no configured accounts
+ */
 
 export default function WelcomeScreen({ selectedAccountId, ...props }: Props) {
   const {
@@ -27,10 +30,8 @@ export default function WelcomeScreen({ selectedAccountId, ...props }: Props) {
   } = useInstantOnboarding()
   const [hasConfiguredAccounts, setHasConfiguredAccounts] = useState(false)
   const { openDialog } = useDialog()
-  const showBackButton = hasConfiguredAccounts
 
   useLayoutEffect(() => {
-    // Show back button when user has already created and configured accounts.
     // On a fresh DC start we will not have any yet.
     const checkAccounts = async () => {
       const accounts = await getConfiguredAccounts()
@@ -43,15 +44,10 @@ export default function WelcomeScreen({ selectedAccountId, ...props }: Props) {
   }, [])
 
   /**
-   * this function is called when the back button is clicked
-   * but also if the dialog is closed by pressing esc multiple
-   * times, which will force Chrome to close the dialog
-   * see https://issues.chromium.org/issues/346597066
-   *
-   * it will cancel the account creation process and call
+   * cancel the account creation process and call
    * onExitWelcomeScreen
    */
-  const onClickBackButton = async () => {
+  const onClose = async () => {
     try {
       const acInfo = await BackendRemote.rpc.getAccountInfo(selectedAccountId)
       if (acInfo.kind === 'Unconfigured') {
@@ -60,15 +56,10 @@ export default function WelcomeScreen({ selectedAccountId, ...props }: Props) {
       }
       props.onExitWelcomeScreen()
     } catch (error) {
-      if (error instanceof Error) {
-        openDialog(AlertDialog, {
-          message: error?.message,
-          cb: () => {},
-        })
-      } else {
-        log.error('unexpected error type', error)
-        throw error
-      }
+      openDialog(AlertDialog, {
+        message: unknownErrorToString(error),
+        cb: () => {},
+      })
     }
   }
 
@@ -77,18 +68,19 @@ export default function WelcomeScreen({ selectedAccountId, ...props }: Props) {
       <Dialog
         fixed
         width={400}
-        canEscapeKeyClose={false}
+        canEscapeKeyClose={hasConfiguredAccounts}
         backdropDragAreaOnTauriRuntime
         canOutsideClickClose={false}
-        onClose={onClickBackButton}
+        onClose={onClose}
+        dataTestid='onboarding-dialog'
+        allowDefaultFocus={true}
       >
         {!showInstantOnboarding ? (
           <OnboardingScreen
             onNextStep={() => startInstantOnboardingFlow()}
             selectedAccountId={selectedAccountId}
-            showBackButton={showBackButton}
             hasConfiguredAccounts={hasConfiguredAccounts}
-            onClickBackButton={onClickBackButton}
+            onClose={onClose}
             {...props}
           />
         ) : (

@@ -1,23 +1,21 @@
-import React, { PropsWithChildren } from 'react'
+import React, { type PropsWithChildren } from 'react'
 import { Avatar } from '../Avatar'
-import { InlineVerifiedIcon } from '../VerifiedIcon'
 
-export function ContactName(props: {
+function ContactName(props: {
   displayName: string
   address: string
-  isVerified?: boolean
+  isKeyContact?: boolean
   isBlocked?: boolean
 }) {
   return (
     <div className='contact-name'>
       <div className='display-name'>
         <span className='truncated'>{props.displayName}</span>
-        {props.isVerified && <InlineVerifiedIcon />}
         {props.isBlocked && (
           <i className='material-svg-icon material-icon-blocked' />
         )}
       </div>
-      <div className='email'>{props.address}</div>
+      {!props.isKeyContact && <div className='email'>{props.address}</div>}
     </div>
   )
 }
@@ -28,7 +26,7 @@ export default function Contact(props: {
     color: string
     displayName: string
     address: string
-    isVerified: boolean
+    isKeyContact: boolean
     wasSeenRecently: boolean
     isBlocked?: boolean
   }
@@ -38,7 +36,7 @@ export default function Contact(props: {
     color,
     displayName,
     address,
-    isVerified,
+    isKeyContact,
     wasSeenRecently,
     isBlocked,
   } = props.contact
@@ -51,12 +49,16 @@ export default function Contact(props: {
           displayName,
           addr: address,
           wasSeenRecently,
+          // Avatar is purely decorative here,
+          // and is redundant accessibility-wise,
+          // because we display the contact name below.
+          'aria-hidden': true,
         }}
       />
       <ContactName
         displayName={displayName}
         address={address}
-        isVerified={isVerified}
+        isKeyContact={isKeyContact}
         isBlocked={isBlocked}
       />
     </div>
@@ -76,6 +78,10 @@ export function PseudoContact(
           avatarPath={undefined}
           color={'#505050'}
           displayName={cutoff || ''}
+          // Avatar is purely decorative here,
+          // and is redundant accessibility-wise,
+          // because we display the "contact name" below.
+          aria-hidden={true}
         />
       )}
       {!subText && (

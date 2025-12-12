@@ -17,7 +17,9 @@ html {
   right: 8px;
   opacity: 0.9;
   border: 0;
-  border-radius: 5px
+  border-radius: 10px;
+  padding: 4px 12px;
+  cursor: pointer;
 }
 
 body {
@@ -27,14 +29,24 @@ body {
   display: block;
   margin-left: auto;
   margin-right: auto;
+  line-height: 24px;
 }
 
 a {
   text-decoration: none;
+  color: #0078f1;
 }
+a:hover {
+  text-decoration: underline;
+}
+a[href^='http']::after {
+  content: "\2009↗︎"; /* thin space + arrow as base+VS15 (text), cmp. https://en.wikipedia.org/wiki/Arrows_%28Unicode_block%29 */
+}
+
 h2,
 h3,
 h4 {
+  padding-top: 1rem; /* using padding+margin results in nicer scrolling position on tapping links */
   margin-top: 2rem;
 }
 ul {
@@ -71,4 +83,67 @@ ul#top li > ul > li::before {
   font-weight: bold;
   display: inline-block;
   width: 1em;
+}
+
+.pagefind-ui__search-input {
+  position: absolute;
+  right: 40px;
+  top: 20px;
+  padding: 8px;
+  padding-right: 23px;
+}
+
+.pagefind-ui__search-clear {
+  position: absolute;
+  right: 10px;
+  top: 20px;
+  border: none;
+  margin-left: -34px;
+  background: none;
+  cursor: pointer;
+  font-size: x-large;
+  vertical-align: middle;
+  font-family: 'Roboto';
+}
+
+.pagefind-ui__suppressed {
+  display: none;
+}
+
+.pagefind-ui__drawer {
+  border-bottom: 2px solid #333;
+}
+
+.pagefind-ui__drawer.pagefind-ui__hidden {
+  display: none;
+}
+
+mark {
+  background-color: rgb(230, 179, 84);
+}
+
+
+.pagefind-ui__result-link :nth-child(0) {
+  color: #fff;
+  cursor: text;
+}
+
+@media (prefers-color-scheme: light) {
+  .pagefind-ui__result-link :first {
+    color: #fff;
+    cursor: text;
+  }
+}
+
+/**
+ * the first result does not fit in our context
+ * it just shows some text and a link to our Help page
+ * we hide it, since it would only make sense on a multi page result
+ */
+.pagefind-ui__result-inner>p {
+  display: none;
+}
+
+.pagefind-ui__results {
+  list-style: none;
 }

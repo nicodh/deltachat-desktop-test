@@ -9,13 +9,13 @@ import Dialog, {
 } from '../Dialog'
 import useTranslationFunction from '../../hooks/useTranslationFunction'
 
-import type { ReactNode } from 'react'
 import type { DialogProps } from '../../contexts/DialogContext'
 
 export type Props = {
   cb?: () => void
-  message: string | ReactNode
+  message: string
   okBtnLabel?: string
+  dataTestid?: string
 } & DialogProps
 
 export default function AlertDialog({
@@ -23,6 +23,7 @@ export default function AlertDialog({
   onClose,
   cb,
   okBtnLabel,
+  dataTestid,
 }: Props) {
   const tx = useTranslationFunction()
 
@@ -32,15 +33,22 @@ export default function AlertDialog({
   }
 
   return (
-    <Dialog width={350} onClose={onClose}>
+    <Dialog
+      width={350}
+      onClose={() => {
+        cb && cb()
+        onClose()
+      }}
+      dataTestid={dataTestid}
+    >
       <DialogBody>
         <DialogContent paddingTop>
-          <p>{message}</p>
+          <p className='whitespace'>{message}</p>
         </DialogContent>
       </DialogBody>
       <DialogFooter>
         <FooterActions>
-          <FooterActionButton onClick={onClick}>
+          <FooterActionButton onClick={onClick} data-testid='alert-ok'>
             {okBtnLabel || tx('ok')}
           </FooterActionButton>
         </FooterActions>

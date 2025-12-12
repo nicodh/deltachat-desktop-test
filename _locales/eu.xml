@@ -4,42 +4,90 @@
     <string name="app_name">Delta Chat</string>
     <string name="ok">Ados</string>
     <string name="cancel">Utzi</string>
+    <string name="clear_search">Garbitu bilaketa</string>
+    <!-- a noun, used on a button, short for "show link" -->
+    <string name="link">Esteka</string>
+    <!-- "scan" in the meaning of "scan QR code" -->
+    <string name="scan">Eskaneatu</string>
     <string name="yes">Bai</string>
     <string name="no">Ez</string>
+    <string name="select">Hautatu</string>
     <string name="on">Bai</string>
     <string name="off">Ez</string>
-    <string name="def">Lehenetsita</string>
+    <string name="def">Lehenetsia</string>
+    <string name="default_value">Lehenetsia (%1$s)</string>
+    <string name="default_value_as_above">Lehenetsia (aurreko bera)</string>
     <string name="custom">Pertsonalizatua</string>
     <string name="none">Bat ere ez</string>
     <string name="automatic">Automatikoa</string>
     <string name="strict">Zorrotza</string>
     <string name="open">Ireki</string>
+    <string name="download">Deskargatu</string>
+    <string name="downloading">Deskargatzen...</string>
+    <string name="open_attachment">Erantsitakoa ireki</string>
+    <string name="join">Batu</string>
+    <string name="rejoin">Batu berriro</string>
     <string name="delete">Ezabatu</string>
+    <string name="delete_for_me">Ezabatu niretzat</string>
+    <string name="delete_for_everyone">Ezabatu denontzat</string>
     <string name="info">Informazioa</string>
     <string name="update">Eguneratu</string>
     <string name="emoji">Emojia</string>
     <string name="attachment">Eranskina</string>
+    <!-- the placeholder will be replaced by the name of the image or file to attach -->
+    <string name="ask_attach">Erantsi \"%1$s\"?</string>
     <string name="back">Atzera</string>
     <string name="close">Itxi</string>
+    <string name="close_window">Leihoa itxi</string>
     <string name="forward">Birbidali</string>
+    <string name="create">Sortu</string>
+    <string name="reset">Berrezarri</string>
+    <string name="later">Geroago</string>
+    <!-- "Resend" means "Sending the selected message(s) again to the same chat". The string is used in a menu and should be as short as possible. Resending may be needed after failures or to repost old messages to new members. -->
+    <string name="resend">Berriro bidali</string>
+    <string name="edited">Editatu egin da</string>
+    <string name="edit_message">Mezua editatu</string>
     <!-- Verb "to archive", as in "put a chat in the archive", not a noun "The Archive". -->
     <string name="archive">Artxibatu</string>
     <!-- Verb "to unarchive", as in "remove a chat from the archive", opposite of the previous string -->
     <string name="unarchive">Berreskuratu artxibotik</string>
     <string name="mute">Isilarazi</string>
+    <string name="muted">Isilarazia</string>
     <string name="ephemeral_messages">Mezuen desagerpena</string>
+    <string name="ephemeral_messages_hint">Txat honetako kide guztiei aplikatzen zaie; mezuak kopiatu, gorde eta birbidali ahal izango dituzte oraindik ere.</string>
     <string name="save">Gorde</string>
     <string name="chat">Txata</string>
     <string name="media">Multimedia</string>
+    <string name="profile">Profila</string>
+    <string name="all_profiles">Profil guztiak</string>
+    <string name="current_profile">Oraingo profila</string>
     <string name="main_menu">Menu nagusia</string>
     <string name="start_chat">Hasi txata</string>
+    <string name="show_full_message">Erakutsi mezu osoa</string>
+    <!-- Stay short here, say ~16 characters. The source string could also be "All Read", maybe that hint can make translations easier :) -->
+    <string name="mark_all_as_read">Ezarri denak irakurri gisa</string>
+    <string name="mark_as_read">Ezarri irakurri gisa</string>
+    <!-- Placeholder text when something is loading -->
+    <string name="loading">Kargatzen...</string>
+    <string name="hide">Ezkutatu</string>
+    <string name="activate">Aktibatu</string>
+    <string name="load_remote_content">Kargatu urrutiko irudiak</string>
+    <!-- Possible answers to the question are: Never, Always, Once -->
+    <string name="load_remote_content_ask">Urrutiko irudiek zure jarraipena egin dezakete.\n\nEzarpen honek letra-tipoak eta beste eduki batzuk ere karga ditzake. Desaktibatuta badago irudi kapsulatuak edo cachean daudenak agertu ahal dira.\n\nKargatu urrutiko irudiak?</string>
+    <string name="always">Beti</string>
+    <string name="always_load_remote_images">Kargatu urrutiko irudiak beti</string>
+    <string name="once">Behin</string>
+    <string name="show_warning">Erakutsi abisua</string>
+    <!-- deprecated, UI must not offer an option to show the password -->
     <string name="show_password">Erakutsi pasahitza</string>
+    <!-- deprecated, UI must not offer an option to show the password -->
     <string name="hide_password">Ezkutatu pasahitza</string>
     <string name="not_now">Orain ez</string>
     <string name="never">Inoiz ez</string>
     <string name="one_moment">Unetxo bat...</string>
     <string name="done">Egina</string>
     <string name="undo">Desegin</string>
+    <string name="offline">Lineaz kanpo</string>
     <!-- For the next view or as "continue". Should be as short as possible. -->
     <string name="next">Hurrengoa</string>
     <string name="error">Errorea</string>
@@ -47,6 +95,8 @@
     <string name="no_app_to_handle_data">Ezin izan da datu mota hau kudeatzeko aplikaziorik.</string>
     <string name="no_browser_installed">Ez dago nabigatzailerik instalatuta.</string>
     <string name="file_not_found">Ezin izan da %1$s aurkitu.</string>
+    <!-- the placeholder will be replaced by the name of a file -->
+    <string name="cannot_save_file">Ezin da %1$s gorde.</string>
     <string name="copied_to_clipboard">Arbelera kopiatuta.</string>
     <string name="contacts_headline">Kontaktuak</string>
     <string name="email_address">E-mail helbidea</string>
@@ -62,11 +112,27 @@
     <string name="this_month">Hilabete honetan</string>
     <string name="last_week">Azken astea</string>
     <string name="last_month">Azken hilabetea</string>
+    <!-- Refers to the time a contact was last seen. Shown below contact name in the profile. The placeholder will be replaced by date or time, resulting in "Last seen at 12:13 AM" or "Last seen Nov 12" -->
+    <string name="last_seen_at">%1$s-n ikusi da azken</string>
+    <!-- Refers to the time a contact was last seen. Shown below contact name in the profile. The placeholder will be replaced by a relative point in time as "3 minutes ago" (see https://momentjs.com for more examples and languages)-->
+    <string name="last_seen_relative">Azken aldiz begiratua %1$s</string>
+    <string name="last_seen_unknown">Azken aldiz begiratzea: ezezaguna</string>
+    <!-- Shown in call duration. Avoid abbreviations, prefer full words ex. "N seconds". -->
+    <plurals name="n_seconds_ext">
+        <item quantity="one">segundo %d</item>
+        <item quantity="other">%d segundo</item>
+    </plurals>
+    <!-- Shown in call duration. Avoid abbreviations, prefer full words ex. "N minutes". -->
+    <plurals name="n_minutes_ext">
+        <item quantity="one">minutu %d</item>
+        <item quantity="other">%d minutu</item>
+    </plurals>
     <!-- Shown beside messages that are "N minutes old". Prefer short strings, or well-known abbreviations. -->
     <plurals name="n_minutes">
         <item quantity="one">min %d</item>
         <item quantity="other">%d min</item>
     </plurals>
+
     <!-- Shown beside messages that are "N hours old". Prefer short strings, or well-known abbreviations. -->
     <plurals name="n_hours">
         <item quantity="one">ordu %d</item>
@@ -84,25 +150,71 @@
         <item quantity="one">Mezu %d</item>
         <item quantity="other">%d mezu</item>
     </plurals>
+    <plurals name="n_reactions">
+        <item quantity="one">Erreakzio %d</item>
+        <item quantity="other">%d erreakzio</item>
+    </plurals>
     <plurals name="n_members">
         <item quantity="one">Kide %d</item>
         <item quantity="other">%d kide</item>
     </plurals>
+    <plurals name="n_recipients">
+        <item quantity="one">Hartzaile %d</item>
+        <item quantity="other">%d hartzaile</item>
+    </plurals>
+    <!-- Short form for "N Items Selected" -->
+    <plurals name="n_selected">
+        <item quantity="one">%d hautatu da</item>
+        <item quantity="other">%d hautatu dira</item>
+    </plurals>
+    <string name="selected_colon">Hautaketa:</string>
     <string name="self">Ni</string>
     <string name="draft">Zirriborroa</string>
     <string name="image">Irudia</string>
+    <!-- Used in summaries as "Draft: Reply", similar as "Draft: Image". Use a noun here, not a verb (not: "to reply") -->
+    <string name="reply_noun">Erantzuna</string>
     <string name="gif">Gif-a</string>
+    <!-- "Stickers" as known from other messengers; in some languages, the English "Sticker" is fine. -->
+    <string name="sticker">Stickerra</string>
+    <string name="add_to_sticker_collection">Gehitu Sticker bildumara</string>
+    <string name="add_stickers_instructions">Stickerretara gehitzeko, klik egin \"Ireki sticker karpeta\"  aukeran, sortu azpikarpeta bat zure sticker multzoarentzat eta arrastatu irudi eta sticker fitxategiak bertara.</string>
+    <string name="open_sticker_folder">Ireki sticker karpeta</string>
     <string name="images">Irudiak</string>
     <string name="audio">Audioa</string>
     <string name="voice_message">Ahots-mezua</string>
+    <string name="forwarded">Birbidalia</string>
     <string name="forwarded_message">Birbidalitako mezua</string>
+    <!-- %1$s will be replaced by the name of the person who forwarded the message -->
+    <string name="forwarded_by">%1$s(e)k birbidalia</string>
     <string name="video">Bideoa</string>
     <string name="documents">Dokumentuak</string>
     <string name="contact">Kontaktua</string>
     <string name="camera">Kamera</string>
+    <string name="switch_camera">Aldatu kamera</string>
+    <string name="toggle_fullscreen">Aldatu pantaila osoa modua</string>
     <string name="location">Kokalekua</string>
+    <string name="locations">Kokalekuak</string>
     <string name="gallery">Galeria</string>
+    <string name="images_and_videos">Irudiak eta bideoak</string>
     <string name="file">Fitxategia</string>
+    <string name="files">Fitxategiak</string>
+    <string name="files_attach_hint">Bidali jatorrizko fitxategiak eta konprimatu gabeko irudiak</string>
+    <!-- "Files" here means the "Files Selector App" or "Files Manager App" -->
+    <string name="choose_from_files">Aukeratu fitxategien artean</string>
+    <string name="choose_from_gallery">Aukeratu Galeriatik</string>
+    <!-- "App" is used to present "Webxdc App" (https://webxdc.org) in a user friendly way. Please stay close to the original term and keep it short (it is used in menus with few screen space). -->
+    <string name="webxdc_app">Aplikazioa</string>
+    <!-- plural of "App"; used to present "Webxdc App" (https://webxdc.org) in a user friendly way. Please stay close to the original term and keep it short (it is used in menus with few screen space). -->
+    <string name="webxdc_apps">Aplikazioak</string>
+    <string name="webxdc_draft_hint">Sakatu \"Bidali\" partekatzeko</string>
+    <string name="home">Hasiera</string>
+    <string name="games">Jokoak</string>
+    <string name="tools">Tresnak</string>
+    <string name="app_size">Tamaina</string>
+    <string name="app_date_published">Argitaratua</string>
+    <string name="add_to_chat">Gehitu txatera</string>
+    <!-- short for "Browse through the App Picker/Store/Catalogue"; could also be translated as "Discover" or "Search" -->
+    <string name="browse">Arakatu</string>
     <string name="unknown">Ezezaguna</string>
 
     <string name="green">Berdea</string>
@@ -114,6 +226,8 @@
     <string name="magenta">Magenta</string>
     <string name="white">Zuria</string>
 
+    <string name="zoom">Zooma</string>
+    <string name="extra_small">Txiki txikia</string>
     <string name="small">Txikia</string>
     <string name="normal">Arrunta</string>
     <string name="large">Handia</string>
@@ -124,8 +238,27 @@
 
     <!-- menu labels (or icon, buttons...) -->
     <string name="menu_new_contact">Kontaktu berria</string>
+    <string name="menu_new_classic_contact">Gehitu kontaktua eskuz</string>
     <string name="menu_new_chat">Txat berria</string>
     <string name="menu_new_group">Talde berria</string>
+    <!-- "Chat" is a verb here, "Message to" would also fit. the string might be used in the "New Chat" screen above the contact list -->
+    <string name="chat_with">Txateatu honekin...</string>
+    <string name="clone_chat">Klonatu txata</string>
+    <!-- consider keeping the term "channel" as in WhatsApp or Telegram -->
+    <string name="channel">Kanala</string>
+    <!-- consider keeping the term "channel" as in WhatsApp or Telegram -->
+    <string name="channels">Kanalak</string>
+    <!-- consider keeping the term "channel" as in WhatsApp or Telegram -->
+    <string name="new_channel">Kanal berria</string>
+    <!-- deprecated -->
+    <string name="add_recipients">Gehitu harpidedunak</string>
+    <!-- consider keeping the term "channel" as in WhatsApp or Telegram -->
+    <string name="channel_name">Kanalaren izena</string>
+    <string name="email">Posta elektronikoa</string>
+    <!-- "New" as in "Create New Email"; shown together with "New Group" and "New Channel" -->
+    <string name="new_email">Posta elektroniko berria</string>
+    <!-- the "Subject" of an email, use the term common in classic email apps -->
+    <string name="subject">Gaia</string>
     <string name="menu_send">Bidali</string>
     <string name="menu_toggle_keyboard">Txandakatu emoji teklatua</string>
     <string name="menu_edit_group">Editatu taldea</string>
@@ -135,11 +268,15 @@
     <string name="menu_unarchive_chat">Berreskuratu txata artxibotik</string>
     <string name="menu_add_attachment">Gehitu eranskina</string>
     <string name="menu_leave_group">Atera taldetik</string>
+    <string name="menu_leave_channel">Utzi kanala</string>
     <string name="menu_delete_chat">Ezabatu txata</string>
-    <string name="menu_delete_messages">Ezabatu mezuak</string>
+    <!-- Command to delete all messages in a chat. The chat itself will not be deleted but will be empty afterwards, so make sure to be different from "Delete Chat" here. "Clear" is a verb here, "Empty Chat" would also be fine (eg. in German "Chat leeren") -->
+    <string name="clear_chat">Garbitu txata</string>
+    <string name="delete_contact">Ezabatu kontaktua</string>
     <string name="menu_delete_location">Ezabatu kokaleku hau?</string>
     <string name="menu_message_details">Mezuaren xehetasunak</string>
     <string name="menu_copy_to_clipboard">Kopiatu arbelera</string>
+    <string name="share_invite_link">Partekatu gonbidapen esteka</string>
     <string name="menu_forward">Birbidali mezua</string>
     <string name="menu_reply">Erantzun mezuari</string>
     <string name="menu_mute">Mututu jakinarazpenak</string>
@@ -176,7 +313,7 @@
     <!-- Opposite of "Pin chat", removing the sticky-state from a chat. -->
     <string name="unpin">Desfinkatu</string>
     <string name="mute_for_one_hour">Mututu ordubete</string>
-    <string name="mute_for_two_hours">Mututu 2 ordu</string>
+    <string name="mute_for_eight_hours">Mututu 8 ordu</string>
     <string name="mute_for_one_day">Mututu egun bat</string>
     <string name="mute_for_seven_days">Mututu 7 egun</string>
     <string name="mute_forever">Mututu betirako</string>
@@ -189,31 +326,18 @@
 
     <string name="file_saved_to">Fitxategia \"%1$s\" helbidean gordeta</string>
 
-    <!-- get confirmations -->
-    <string name="ask_leave_group">Ziur talde honetatik atera nahi duzula?</string>
-    <plurals name="ask_delete_chat">
-        <item quantity="one">Ezabatu txat %d? Ez da gehiago agertuko txaten zerrendan, mezuak zerbitzarian mantenduko dira.</item>
-        <item quantity="other">Ezabatu %d txat? Ez dira gehiago agertuko txaten zerrendan, mezuak zerbitzarian mantenduko dira.</item>
-    </plurals>
-    <plurals name="ask_delete_messages">
-        <item quantity="one">Ezabatu mezu  %d hemen eta zerbitzarian?</item>
-        <item quantity="other">Ezabatu  %dmezu hemen eta zerbitzarian?</item>
-    </plurals>
     <string name="ask_forward">Birbidali mezuak %1$s erabiltzaileari?</string>
     <string name="ask_export_attachment">Esportatu eranskina? Eranskinak esportatzeak zure beste gailuko beste aplikazioek atzitzea ahalbidetuko du.\n\nJarraitu?</string>
     <string name="ask_block_contact">Blokeatu kontaktu hau? Ez dituzu kontaktu honen mezu gehiago jasoko.</string>
     <string name="ask_unblock_contact">Desblokeatu kontaktu hau? Berriro jaso ahal izango dituzu kontaktu honen mezuak.</string>
     <string name="ask_delete_contacts">Ezabatu kontaktuak? Honek behin betiko ezabatuko ditu hautatutako kontaktuak.\n\nTxaten bat abian duten eta sistemako helbide liburuan dauden kontaktuak ezin dira behin betiko ezabatu.</string>
     <string name="ask_delete_contact">Ezabatu %1$s kontaktua behin betiko?\n\nAbian dauden txatak dituzten kontaktuak eta sistemaren helbide liburuan dauden kontaktuak ezin dira behin betiko ezabatu.</string>
-    <string name="cannot_delete_contacts_in_use">Ezin dira txatak abian dituzten kontaktuak ezabatu</string>
     <string name="ask_start_chat_with">Txateatu %1$s erabiltzailearekin?</string>
     <!-- %1$s is replaced by a comma-separated list of names -->
     <string name="ask_remove_members">Kendu %1$s taldetik?</string>
     <!-- contact list -->
     <string name="contacts_title">Kontaktuak</string>
-    <string name="contacts_enter_name_or_email">Sartu izena edo e-mail helbidea</string>
     <string name="contacts_type_email_above">Idatzi e-mail helbidea goian</string>
-    <string name="contacts_empty_hint">Kontakturik ez</string>
 
 
     <!-- chatlist and chat view -->
@@ -243,6 +367,8 @@
     <string name="chat_archived_label">Artxibatuta</string>
     <string name="chat_no_messages">Mezurik ez.</string>
     <string name="chat_self_talk_subtitle">Nire buruari bidalitako mezuak</string>
+    <!-- Action to add a message to "Saved Messages". The longer form (instead of "Save" only) is needed esp. on desktop to make clear this is not about saving a file to disk -->
+    <string name="save_message">Gorde</string>
     <string name="saved_messages">Gordetako mezuak</string>
     <string name="saved_messages_explain">• Birbidali mezuak hona eskura izateko\n\n• Hartu oharrak edo ahots mezuak\n\n• Gehitu multimedia horietara</string>
     <string name="retry_send">Saiatu berriro mezua bidaltzen</string>
@@ -250,6 +376,7 @@
     <string name="filter_map_on_time">Erakutsi kokalekuak denbora markoan</string>
     <string name="show_location_traces">Erakutsi lorratzak</string>
     <string name="add_poi">Bidali interesezko puntua</string>
+
 
     <!-- search -->
     <string name="search">Bilatu</string>
@@ -274,13 +401,8 @@
     <string name="tab_docs_empty_hint">Txat honetan partekatutako dokumentuak, musika, eta bestelako fitxategiak agertuko dira hemen</string>
     <string name="media_preview">Multimediaren aurrebista</string>
     <string name="send_message">Bidali mezua</string>
+
     <string name="login_title">Hasi saioa</string>
-    <!-- for classic email, we use the classical term "Account" -->
-    <string name="login_header">Hasi saioa zure zerbitzarian</string>
-    <!-- for classic email, we use the classical term "Account" -->
-    <string name="login_explain">Badagoen e-mail kontu batekin saioa hasten</string>
-    <string name="login_subheader">E-mail hornitzaile ezagunentzat ezarpen gehigarriak automatikoki sortzen dira. Batzuetan IMAP gaitu behar da web interfazearen bidez. Kontsultatu zure e-mail hornitzaileari edo eskatu laguntza lagunei.</string>
-    <string name="login_no_servers_hint">Ez dago Delta Chat zerbitzaririk, zure datuak zure gailuan mantentzen dira!</string>
     <string name="login_inbox">Sarrera ontzia</string>
     <string name="login_imap_login">IMAP erabiltzaile-izena</string>
     <string name="login_imap_server">IMAP zerbitzaria</string>
@@ -292,9 +414,6 @@
     <string name="login_smtp_server">SMTP zerbitzaria</string>
     <string name="login_smtp_port">SMTP ataka</string>
     <string name="login_smtp_security">SMTP segurtasuna</string>
-    <string name="login_auth_method">Baimentze metodoa</string>
-    <string name="login_info_oauth2_title">Jarraitu ezarpen sinplifikatuarekin</string>
-    <string name="login_info_oauth2_text">Sartu duzun e-mail helbideak ezarpen sinplifikatua onartzen du (OAuth2).\n\nHurrengo urratsean, baimendu Detla Chat zure e-mail bidezko txat aplikazio gisa erabili ahal izateko.\n\nEz dago Delta Chat zerbitzaririk, zure datuak zure gailuan mantentzen dira!</string>
     <string name="login_certificate_checks">Ziurtagiri-egiaztaketak</string>
     <string name="login_error_mail">Sartu baliozko e-mail helbide bat</string>
     <string name="login_error_server">Sartu baliozko zerbitzari / IP helbide bat</string>
@@ -302,8 +421,8 @@
     <string name="login_error_required_fields">Sartu baliozko e-mail helbidea eta pasahitza</string>
     <string name="import_backup_title">Inportatu babes-kopia</string>
     <string name="import_backup_ask">Babes-kopia aurkitu da:  \"%1$s\".\n\nInportatu nahi duzu eta bertako datu eta ezarpenak erabili?</string>
-    <string name="import_backup_no_backup_found">Ez da babes-kopiarik aurkitu.\n\nKopiatu babes-kopia \"%1$s\" karpetan eta saiatu berriro. Bestela, sakatu \"Hasi txateatzen\" ezarpen arruntarekin aurrera egiteko.</string>
-    <!-- Translators: %1$s will be replaced by the e-mail address -->
+    <string name="import_backup_no_backup_found">Ez da babes-kopiarik aurkitu.\n\nKopiatu babes-kopia \"%1$s\" karpetan eta saiatu berriro.</string>
+    <!-- %1$s will be replaced by the failing address -->
     <string name="login_error_cannot_login">Ezin da \"%1$s\" bezala saioa hasi. Egiaztatu E-mail helbidea eta pasahitza zuzenak diren.</string>
     <!-- TLS certificate checks -->
     <string name="accept_invalid_certificates">Onartu ziurtagiri baliogabeak</string>
@@ -323,11 +442,9 @@
     <string name="pref_profile_info_headline">Zure profileko informazioa</string>
     <string name="pref_profile_photo">Profileko argazkia</string>
     <string name="pref_blocked_contacts">Blokeatutako kontaktuak</string>
-    <!-- for classic email, we use the classical term "Account" -->
-    <string name="pref_password_and_account_settings">Pasahitza eta kontua</string>
     <string name="pref_who_can_see_profile_explain">Zure profileko argazkia eta izena zure mezuekin batera erakutsiko dira beste erabiltzaileekin komunikatzen zarenean. Informazioa behin bidalita ezin da ezabatu edo kendu.</string>
     <string name="pref_your_name">Zure izena</string>
-    <!-- Translators: Visible only to recipients who DO NOT use Delta Chat, so it's the last line in an E-mail and not a "Status". -->
+    <!-- Label of the Bio/Signature/Status/Motto field -->
     <string name="pref_default_status_label">Sinaduraren testua</string>
     <string name="pref_enter_sends">Enter teklarekin bidali</string>
     <string name="pref_enter_sends_explain">Enter tekla sakatzeak mezua bidaliko du</string>
@@ -360,9 +477,6 @@
     <string name="pref_read_receipts">Irakurragiriak</string>
     <string name="pref_read_receipts_explain">Irakurragiriak desgaituta badaude, ezin izango dituzu besteen irakurragiriak ikusi.</string>
     <string name="pref_manage_keys">Kudeatu gakoak</string>
-    <string name="pref_use_system_emoji">Erabili sistemako emojiak</string>
-    <string name="pref_use_system_emoji_explain">Desgaitu Delta Chat-en barne emoji euskarria</string>
-    <string name="pref_app_access">Aplikazio sarbidea</string>
     <string name="pref_chats">Txatak</string>
     <string name="pref_in_chat_sounds">Txat bitarteko soinuak</string>
     <string name="pref_view_log">Ikusi egunkaria</string>
@@ -375,23 +489,12 @@
     <string name="pref_backup_export_explain">Babes-kopia batek instalazio berri bat ezartzen laguntzen dizu, bai gailu honetan zein beste batean.\n\nBabes-kopiak mezu guztiak, kontaktuak eta txatak, eta zure Autocrypt ezarpena daramatza. Gorde babes-kopiaren fitxategia toki seguruan edo ezabatu ahalik eta lasterren.</string>
     <string name="pref_backup_export_start_button">Hasi babes-kopia</string>
     <string name="pref_backup_written_to_x">Babes-kopia ongi idatzi da hemen: %1$s</string>
-    <string name="pref_managekeys_menu_title">Kudeatu gakoak</string>
-    <string name="pref_managekeys_export_secret_keys">Esportatu gako sekretuak</string>
-    <string name="pref_managekeys_export_explain">Esportatu gako sekretuak \"%1$s\"-ra?</string>
-    <string name="pref_managekeys_import_secret_keys">Inportatu gako sekretuak</string>
-    <string name="pref_managekeys_import_explain">Inportatu gako sekretuak \"%1$s\"-tik?\n\n• Dauden gako sekretuak ez dira ezabatuko\n\n• Inportatutako azken gakoa lehenetsitako gako berri gisa erabiliko da fitxategiaren izenean \"legacy\" ez badu.</string>
-    <string name="pref_managekeys_secret_keys_exported_to_x">Gako sekretuak ongi idatzi dira hemen: \"%1$s\".</string>
-    <string name="pref_managekeys_secret_keys_imported_from_x">Gako sekretuak hemendik inportatu dira: \"%1$s\".</string>
     <!-- No need to translate "Wallpaper" literally. Chose what is common in your language for a "Wallpaper" or a "Background". Avoid adding the term "image" here, as the "Wallpaper" may also be just a single color. -->
     <string name="pref_background">Atzealdea</string>
     <string name="pref_background_btn_default">Erabili lehenetsitako irudia</string>
     <string name="pref_background_btn_gallery">Hautatu galeriatik</string>
-    <string name="pref_imap_folder_handling">IMAP karpeten kudeaketa</string>
     <string name="pref_imap_folder_warn_disable_defaults">Aukera hau desaktibatuz gero, egiaztatu zure zerbitzaria eta beste bezeroen konfigurazioa bat datorrela.\n\nBestela agian gauzak ez dabiltza.</string>
-    <string name="pref_watch_sent_folder">Begiztatu bidalitakoak karpeta</string>
-    <string name="pref_send_copy_to_self">Bidali kopia norberari</string>
     <string name="pref_auto_folder_moves">Automatikoki mugitzen du DeltaChat karpetara</string>
-    <string name="pref_auto_folder_moves_explain">Txat elkarrizketak lekuz aldatzen dira sarrera ontzian enbarazu ez egiteko</string>
     <string name="pref_show_emails">Erakutsi ohiko e-mailak</string>
     <string name="pref_show_emails_no">Ez, txatak besterik ez</string>
     <string name="pref_show_emails_accepted_contacts">Onartutako kontaktuena</string>
@@ -414,44 +517,23 @@
     <string name="autodel_after_1_week">Aste bat eta gero</string>
     <string name="autodel_after_1_year">Urtebete eta gero</string>
 
-    <!-- autocrypt -->
-    <string name="autocrypt_send_asm_title">Bidali Autocrypt ezarpen mezua</string>
-    <string name="autocrypt_send_asm_explain_before">\"Autocrypt ezarpen mezua\" batek modu seguruan partekatzen du zure muturretik muturrerako ezarpena Autocryptekin bateragarriak diren beste aplikazioekin. Ezarpena hemen bistaratutako ezarpen kodearekin zifratuko  da, eta beste gailuan kode hau sartu beharko da.</string>
-    <string name="autocrypt_send_asm_button">Bidali Autocrypt ezarpen mezua</string>
-    <string name="autocrypt_send_asm_explain_after">Zure ezarpena zuri bidali zaizu. Aldatu beste gailura eta ireki ezarpen mezua. Ezarpen kode bat eskatuko zaizu, Idatzi honako zenbaki hauek han.\n\nBehin bukatuta, zure beste gailua Autocrypt erabiltzeko prest egongo da.</string>
-    <string name="autocrypt_prefer_e2ee">Hobetsi muturretik muturrerako zifratzea</string>
-    <string name="autocrypt_asm_subject">Autocrypt ezarpen mezua</string>
-    <string name="autocrypt_asm_general_body">Hau Autocrypt ezarpen mezua da, zure muturretik muturrerako ezarpena bezeroen artean pasatzeko erabilia.\n\n Zure ezarpena deszifratu eta erabiltzeko, ireki mezua Autocrypt onartzen duen bezero batean eta sartu gailu sortzailean agertutako ezarpen kodea.</string>
-    <string name="autocrypt_asm_click_body">Hau Autocrypt ezarpen mezua da, zure muturretik muturrerako ezarpena bezeroen artean pasatzeko erabilia.\n\n Zure ezarpena deszifratu eta erabiltzeko, sakatu edo egin klik mezu honetan.</string>
-    <string name="autocrypt_continue_transfer_title">Autocrypt ezarpen mezua</string>
-    <string name="autocrypt_continue_transfer_please_enter_code">Sartu hemen beste gailuan erakusten den ezarpen kodea.</string>
-    <string name="autocrypt_continue_transfer_succeeded">Muturretik muturrerako ezarpena transferituta. Gailu hau Autocrypt erabiltzeko prest dago orain, beste gailuaren ezarpen berdinarekin.</string>
-    <string name="autocrypt_continue_transfer_retry">Saiatu berriro</string>
-    <string name="autocrypt_bad_setup_code">Ezarpen kode okerra. Saiatu berriro mesedez.\n\nEz baduzu ezarpen kodea gogoratzen, bidali beste Autocrypt ezarpen mezu bat beste gailutik.</string>
-
-
-    <!-- system messages -->
-    <!-- deprecated -->
-    <string name="systemmsg_read_receipt_subject">Irakurragiria</string>
-    <!-- deprecated -->
-    <string name="systemmsg_read_receipt_body">Hau \"%1$s\" mezuaren irakurragiri bat da.\n\nHonek mezua jasotzailearen gailuan bistaratu dela esan nahi du, ez edukia irakurri dela.</string>
     <!-- %1$s will be replaced by the old group name, %2$s will be replaced by the new group name -->
     <string name="group_name_changed_by_you">Nik: Taldearen izena \"%1$s\" izatetik \"%2$s\" izatera aldatu da</string>
     <!-- %1$s will be replaced by the old group name, %2$s will be replaced by the new group name, %3$s will be replaced by name and address of the contact who did the action. -->
     <string name="group_name_changed_by_other">%3$s(e)k: Taldearen izena \"%1$s\" izatetik \"%2$s\" izatera aldatu da</string>
     <string name="group_image_changed_by_you">Nik: Taldearen irudia aldatuta</string>
-    <!-- %1$s will be replaced by name and address of the contact who did the action -->
+    <!-- %1$s will be replaced by name of the contact who did the action -->
     <string name="group_image_changed_by_other">%1$s(e)k: Taldearen irudia aldatuta</string>
-    <!-- %1$s will be replaced by name and address of the contact added to the group -->
+    <!-- %1$s will be replaced by name of the contact added to the group -->
     <string name="add_member_by_you">Nik: %1$s kidea gehituta</string>
-    <!-- %1$s will be replaced by name and address of the contact added to the group, %2$s will be replaced by name and address of the contact who did the action -->
+    <!-- %1$s will be replaced by name of the contact added to the group, %2$s will be replaced by name of the contact who did the action -->
     <string name="add_member_by_other">%2$s(e)k: %1$s kidea gehituta</string>
-    <!-- %1$s will be replaced by name and address of the contact removed from the group -->
+    <!-- %1$s will be replaced by name of the contact removed from the group -->
     <string name="remove_member_by_you">Nik: %1$s kidea kenduta</string>
-    <!-- %1$s will be replaced by name and address of the contact removed from the group, %2$s will be replaced by name and address of the contact who did the action -->
+    <!-- %1$s will be replaced by name of the contact removed from the group, %2$s will be replaced by name of the contact who did the action -->
     <string name="remove_member_by_other">%2$s(e)k: %1$s kidea kenduta</string>
     <string name="group_image_deleted_by_you">Nik: Taldearen irudia ezabatuta</string>
-    <!-- %1$s will be replaced by name and address of the contact -->
+    <!-- %1$s will be replaced by name of the contact -->
     <string name="group_image_deleted_by_other">%1$s(e)k: Taldearen irudia ezabatuta</string>
     <!-- qr code stuff -->
     <string name="qr_code">QR kodea</string>
@@ -471,15 +553,12 @@
     <!-- This text is shown inside the "QR code card" with very limited space; please formulate the text as short as possible therefore. The placeholder will be replaced by the group name, eg. "Scan to join group \"Testing group\"" -->
     <string name="qrshow_join_group_hint">Eskaneatu hau \"%1$s\" taldera elkartzeko.</string>
     <string name="qrshow_join_contact_title">QR gonbidapen-kodea</string>
-    <!-- This text is shown inside the "QR code card" with very limited space; please formulate the text as short as possible therefore. The placeholder will be replaced by name and address eg. "Scan to chat with Alice (alice@example.org)" -->
+    <!-- This text is shown inside the "QR code card" with very limited space; please formulate the text as short as possible therefore. The placeholder will be replaced by the profile name eg. "Scan to chat with Alice" -->
     <string name="qrshow_join_contact_hint">Eskaneatu hau %1$s erabiltzailearen kontaktua ezartzeko</string>
     <string name="qrshow_join_contact_no_connection_toast">Ez dago Internet konexiorik, ezin da QR kode bidezko ezarpena aplikatu</string>
     <string name="qraccount_ask_create_and_login">Sortu kontu berria \"%1$s\" zerbitzarian eta saioa han hasi?</string>
     <string name="qraccount_qr_code_cannot_be_used">Eskaneatutako QR kodea ezin da kontu berri bat ezartzeko erabili.</string>
     <string name="contact_verified">%1$s egiaztatuta.</string>
-    <string name="contact_not_verified">Ezin da %1$s egiaztatu</string>
-    <!-- translators: "setup" is the "encryption setup" here, as in "Autocrypt Setup Message" -->
-    <string name="contact_setup_changed">Aldatu %1$s(r)en ezarpena</string>
     <!-- notifications  -->
     <string name="notify_reply_button">Erantzun</string>
     <string name="notify_new_message">Mezu berria</string>
@@ -493,12 +572,10 @@
     <string name="perm_required_title">Baimena behar da</string>
     <string name="perm_continue">Jarraitu</string>
     <string name="perm_explain_access_to_camera_denied">Delta Chat-ek kamerara sarbidea behar du argazkiak edo bideoak ateratzeko, baina behin betiko ukatu zaio. Joan aplikazioaren ezarpen menura, hautatu \"Baimenak\" eta gaitu \"Kamera\".</string>
+    <!-- give the user an idea where to find the "Microphone" option. the hint is only shown if access was initially denied by the user. pick up wordings really used on the systems, but do not be overly precise: things shift around often and there are too many system we support to track every detail and click path -->
     <string name="perm_explain_access_to_mic_denied">Delta Chat-ek mikrofonoa erabiltzeko baimena behar du ahots-mezuak bidali ahal izateko, baina behin betiko ukatu zaio. Joan aplikazioaren ezarpenetara, hautatu \"Baimenak\" eta gaitu \"Mikrofonoa\".</string>
     <string name="perm_explain_access_to_storage_denied">Delta Chat-ek biltegiratze baimena behar du argazkiak, bideoak edo audioa erantsi edo esportatzeko, baina behin betiko ukatu zaio. Joan aplikazioaren ezarpen menura, hautatu \"baimenak\", eta gaitu \"Biltegiratzea\"</string>
     <string name="perm_explain_access_to_location_denied">Delta Chat-ek kokaleku aatzitzeko baimena behar du kokalekua eransteko, baina behin betiko ukatu zaio. Joan aplikazioaren ezarpen menura, hautatu \"baimenak\", eta gaitu \"Kokalekua\".</string>
-    <!-- dc_str_* resources -->
-    <string name="encrypted_message">Zifratutako mezua</string>
-
     <string name="welcome_desktop">Ongi etorri Delta Chat-era</string>
     <string name="global_menu_preferences_language_desktop">Hautatu hizkuntza...</string>
     <string name="global_menu_file_desktop">Fitxategia</string>
@@ -514,8 +591,6 @@
     <string name="global_menu_view_developer_desktop">Garatzailea</string>
     <string name="global_menu_view_developer_tools_desktop">Garatzaile-tresnak</string>
     <string name="global_menu_help_desktop">Laguntza</string>
-    <string name="global_menu_help_learn_desktop">Ikasi gehiago Delta Chat-i buruz</string>
-    <string name="global_menu_help_contribute_desktop">Hartu parte GitHub-en</string>
     <string name="global_menu_help_report_desktop">Eman arazo baten berri</string>
     <string name="global_menu_help_about_desktop">Delta Chat-i buruz</string>
     <string name="no_chat_selected_suggestion_desktop">Hautatu txat bat edo sortu txat berri bat</string>
@@ -529,15 +604,12 @@
     <string name="name_desktop">Izena</string>
     <string name="select_group_image_desktop">Hautatu taldearen irudia</string>
     <string name="export_backup_desktop">Esportatu babes-kopia</string>
-    <string name="autocrypt_correct_desktop">Ongi igorri da Autocrypt ezarpena!</string>
-    <string name="forget_login_confirmation_desktop">Ezabatu erabiltzaile-izen hau? Dena ezabatuko da, muturretik muturrerako ezarpena, txatak, mezuak eta multimedia barne. Ekintza hau behin betikoa da eta ezin da desegin.</string>
     <string name="message_detail_sent_desktop">bidalita</string>
     <string name="message_detail_received_desktop">jasota</string>
     <string name="menu.view.developer.open.log.folder">Ireki egunkarien karpeta</string>
     <string name="menu.view.developer.open.current.log.file">Ireki uneko egunkari-fitxategia</string>
     <!-- accessibility, the general idea is to use the normal strings for accessibility hints wherever possible -->
     <string name="a11y_delivery_status_error">Bidalketa-egoera: Errorea</string>
-    <string name="a11y_encryption_padlock">Zifratze giltzarrapoa</string>
     <string name="a11y_delivery_status_sending">Bidalketa-egoera: Bidaltzen</string>
     <string name="a11y_delivery_status_draft">Bidalketa-egoera: Zirriborroa</string>
     <string name="a11y_delivery_status_delivered">Bidalketa-egoera: Bidalita</string>
@@ -547,7 +619,6 @@
     <string name="a11y_background_preview_label">Atzealdearen aurrebista</string>
     <!-- iOS permissions, copy from "deltachat-ios/Info.plist", which is used on missing translations in "deltachat-ios/LANG.lproj/InfoPlist.strings" -->
     <string name="InfoPlist_NSCameraUsageDescription">Kamera atzitzeko baimena emateak argazkiak eta bideoak ateratzea ahalbidetzen dizu.</string>
-    <string name="InfoPlist_NSContactsUsageDescription">Kontaktuen liburua atzitzeko baimena emateak zure gailuko kontaktuekin txateatzea ahalbidetzen dizu.</string>
     <string name="InfoPlist_NSMicrophoneUsageDescription">Mikrofonoa  atzitzeko baimena emateak audioa grabatzea ahalbidetzen dizu.</string>
     <string name="InfoPlist_NSPhotoLibraryUsageDescription">Argazkien bilduma atzitzeko baimena emateak bertatik argazkiak igotzea ahalbidetzen dizu.</string>
     <!-- disabling "Reliable service" will hide a the maybe annoying permanent-notification with the drawback that new-message-notifications get potentially unreliable -->

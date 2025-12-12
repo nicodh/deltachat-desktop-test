@@ -4,17 +4,15 @@ import { BackendRemote, Type } from '../backend-com'
 import { onReady } from '../onready'
 import { runtime } from '@deltachat-desktop/runtime-interface'
 import { Store, useStore } from './store'
-import { debouncedUpdateBadgeCounter } from '../system-integration/badge-counter'
+import { throttledUpdateBadgeCounter } from '../system-integration/badge-counter'
 
 export interface SettingsStoreState {
   accountId: number
   selfContact: Type.Contact
   settings: {
     [P in (typeof settingsKeys)[number]]: {
-      sentbox_watch: string
       mvbox_move: string
-      e2ee_enabled: string
-      addr: string
+      configured_addr: string
       displayname: string
       selfstatus: string
       mdns_enabled: string
@@ -22,10 +20,8 @@ export interface SettingsStoreState {
       bcc_self: string
       delete_device_after: string
       delete_server_after: string
-      webrtc_instance: string
       download_limit: string
       only_fetch_mvbox: string
-      disable_idle: string
       media_quality: string
       is_chatmail: '0' | '1'
       webxdc_realtime_enabled: string
@@ -36,10 +32,8 @@ export interface SettingsStoreState {
 }
 
 const settingsKeys = [
-  'sentbox_watch',
   'mvbox_move',
-  'e2ee_enabled',
-  'addr',
+  'configured_addr',
   'displayname',
   'selfstatus',
   'mdns_enabled',
@@ -47,10 +41,8 @@ const settingsKeys = [
   'bcc_self',
   'delete_device_after',
   'delete_server_after',
-  'webrtc_instance',
   'download_limit',
   'only_fetch_mvbox',
-  'disable_idle',
   'media_quality',
   'is_chatmail',
   'webxdc_realtime_enabled',
@@ -180,7 +172,7 @@ class SettingsStore extends Store<SettingsStoreState | null> {
           if (this.state?.accountId) {
             BackendRemote.rpc.startIo(this.state.accountId)
           }
-          debouncedUpdateBadgeCounter()
+          throttledUpdateBadgeCounter()
           window.__updateAccountListSidebar?.()
         }
         this.reducer.setDesktopSetting(key, value)

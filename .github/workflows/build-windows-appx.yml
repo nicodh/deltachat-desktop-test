@@ -1,14 +1,9 @@
 name: Build for windows store (appx unsigned)
 
-on: # todo make it only on tag
-  pull_request:
-    paths-ignore:
-      - 'docs/**'  # only trigger build if a file outside of /docs was changed
-      - 'README_ASSETS/**'
-      - 'test/**'
-      - '*.md'
-      - '.prettierrc.yml'
-      - '.vscode/**'
+on:
+  push:
+    tags:
+      - '*'
 
 jobs:
   upload-preview:
@@ -17,10 +12,10 @@ jobs:
     steps:
     # Preperation
     - uses: actions/checkout@v1
-    - name: Use Node.js 20.x
+    - name: Use Node.js 22.x
       uses: actions/setup-node@v4
       with:
-        node-version: 20.x
+        node-version: 22.x
     # Building JS
     - name: pnpm install, build
       run: |

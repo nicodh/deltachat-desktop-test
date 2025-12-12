@@ -1,7 +1,6 @@
 import React from 'react'
 
 import { Avatar, ClickForFullscreenAvatarWrapper } from '../Avatar'
-import { InlineVerifiedIcon } from '../VerifiedIcon'
 
 import styles from './styles.module.scss'
 
@@ -10,37 +9,37 @@ type Props = {
   avatarPath?: string
   color?: string
   displayName: string
-  isVerified: boolean
   wasSeenRecently?: boolean
-}
+} & Pick<
+  Parameters<typeof ClickForFullscreenAvatarWrapper>[0],
+  'disableFullscreen'
+>
 
 export default function ProfileInfoHeader({
-  address,
   avatarPath,
   color,
   displayName,
-  isVerified,
   wasSeenRecently = false,
+  disableFullscreen,
 }: Props) {
   return (
     <div className={styles.profileInfoHeader}>
-      <ClickForFullscreenAvatarWrapper filename={avatarPath}>
+      <ClickForFullscreenAvatarWrapper
+        filename={avatarPath}
+        disableFullscreen={disableFullscreen}
+      >
         <Avatar
           displayName={displayName}
           avatarPath={avatarPath}
           color={color}
           wasSeenRecently={wasSeenRecently}
-          large
+          className='very-large'
         />
       </ClickForFullscreenAvatarWrapper>
       <div className={styles.infoContainer}>
-        <p className={styles.displayName}>
+        <p className={styles.displayName} data-test-id='profile-display-name'>
           {displayName}
-          <span className={styles.verifiedIconWrapper}>
-            {isVerified && <InlineVerifiedIcon />}
-          </span>
         </p>
-        {address && <div className={styles.address}>{address}</div>}
       </div>
     </div>
   )

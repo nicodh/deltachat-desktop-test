@@ -6,12 +6,21 @@ import {
   ipcMain,
   nativeImage,
   shell,
+  NativeImage,
+  systemPreferences,
 } from 'electron'
-import path, { basename, extname, join, posix, sep, dirname } from 'path'
+import path, {
+  basename,
+  extname,
+  join,
+  posix,
+  sep,
+  dirname,
+  normalize,
+} from 'path'
 import { inspect } from 'util'
 import { platform } from 'os'
 import { existsSync } from 'fs'
-import mimeTypes from 'mime-types'
 import { versions } from 'process'
 import { fileURLToPath } from 'url'
 
@@ -20,6 +29,7 @@ import {
   getDraftTempDir,
   getLogsPath,
   htmlDistDir,
+  INTERNAL_TMP_DIR_NAME,
 } from './application-constants.js'
 import { LogHandler } from './log-handler.js'
 import { ExtendedAppMainProcess } from './types.js'
@@ -34,6 +44,11 @@ import { appx, mapPackagePath } from './isAppx.js'
 import DeltaChatController from './deltachat/controller.js'
 import { BuildInfo } from './get-build-info.js'
 import { updateContentProtectionOnAllActiveWindows } from './content-protection.js'
+import { MediaType } from '@deltachat-desktop/runtime-interface'
+import {
+  startHandlingIncomingVideoCalls,
+  startOutgoingVideoCall,
+} from './windows/video-call.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -42,8 +57,8 @@ const log = getLogger('main/ipc')
 const app = rawApp as ExtendedAppMainProcess
 
 let dcController: typeof DeltaChatController.prototype
-export function getDCJsonrpcClient() {
-  return dcController.jsonrpcRemote.rpc
+export function getDCJsonrpcRemote() {
+  return dcController.jsonrpcRemote
 }
 
 /** returns shutdown function */
@@ -59,20 +74,22 @@ export async function init(cwd: string, logHandler: LogHandler) {
       error,
       dcController.rpcServerPath
     )
-    /* ignore-console-log */
+    // eslint-disable-next-line no-console
     console.error(
       "Fatal: The DeltaChat Module couldn't be loaded. Please check if all dependencies for deltachat-core are installed!",
       error,
       dcController.rpcServerPath
     )
+
     dialog.showErrorBox(
       'Fatal Error',
       `The DeltaChat Module couldn't be loaded.
-Please check if all dependencies for deltachat-core are installed!
-The Log file is located in this folder: ${getLogsPath()}\n
-${dcController.rpcServerPath}\n
-${error instanceof Error ? error.message : inspect(error, { depth: null })}`
+  Please check if all dependencies for deltachat-core are installed!
+  The Log file is located in this folder: ${getLogsPath()}\n
+  ${dcController.rpcServerPath}\n
+  ${error instanceof Error ? error.message : inspect(error, { depth: null })}`
     )
+
     rawApp.exit(1)
   }
 
@@ -89,9 +106,31 @@ ${error instanceof Error ? error.message : inspect(error, { depth: null })}`
   )
 
   ipcMain.on('ondragstart', (event, filePath) => {
+    let icon: NativeImage
+    try {
+      icon = nativeImage.createFromPath(
+        join(htmlDistDir(), 'images/electron-file-drag-out.png')
+      )
+      if (icon.isEmpty()) {
+        throw new Error('load failed')
+      }
+    } catch (error) {
+      log.warn('drag out icon could not be loaded', error)
+      // create dummy black image
+      const size = 64 ** 2 * 4
+      const buffer = Buffer.alloc(size)
+      for (let i = 0; i < size; i += 4) {
+        buffer[i] = 0
+        buffer[i + 1] = 0
+        buffer[i + 2] = 0
+        buffer[i + 3] = 255
+      }
+      icon = nativeImage.createFromBitmap(buffer, { height: 64, width: 64 })
+    }
+
     event.sender.startDrag({
       file: filePath,
-      icon: join(htmlDistDir(), 'electron-file-drag-out.png'),
+      icon,
     })
   })
 
@@ -139,6 +178,43 @@ ${error instanceof Error ? error.message : inspect(error, { depth: null })}`
   ipcMain.on('app-get-path', (ev, arg) => {
     ev.returnValue = app.getPath(arg)
   })
+
+  /**
+   * https://www.electronjs.org/docs/latest/api/system-preferences#systempreferencesgetmediaaccessstatusmediatype-windows-macos
+   */
+  ipcMain.handle('checkMediaAccess', (_ev, mediaType: MediaType) => {
+    if (!systemPreferences.getMediaAccessStatus) {
+      return new Promise(resolve => {
+        resolve('unknown')
+      })
+    }
+    if (mediaType === 'camera') {
+      return systemPreferences.getMediaAccessStatus('camera')
+    } else if (mediaType === 'microphone') {
+      return systemPreferences.getMediaAccessStatus('microphone')
+    } else {
+      throw new Error('checkMediaAccess: unsupported media type')
+    }
+  })
+
+  /**
+   * https://www.electronjs.org/docs/latest/api/system-preferences#systempreferencesaskformediaaccessmediatype-macos
+   */
+  ipcMain.handle(
+    'askForMediaAccess',
+    (_ev, mediaType: MediaType): Promise<boolean | undefined> => {
+      if (systemPreferences.askForMediaAccess) {
+        if (mediaType === 'camera') {
+          return systemPreferences.askForMediaAccess('camera')
+        } else if (mediaType === 'microphone') {
+          return systemPreferences.askForMediaAccess('microphone')
+        }
+      }
+      return new Promise(resolve => {
+        resolve(undefined)
+      })
+    }
+  )
 
   ipcMain.handle('fileChooser', async (_ev, options) => {
     if (!mainWindow.window) {
@@ -222,15 +298,15 @@ ${error instanceof Error ? error.message : inspect(error, { depth: null })}`
     }
   )
 
-  ipcMain.handle('app.writeClipboardToTempFile', () =>
-    writeClipboardToTempFile()
-  )
   ipcMain.handle('app.writeTempFileFromBase64', (_ev, name, content) =>
     writeTempFileFromBase64(name, content)
   )
   ipcMain.handle('app.writeTempFile', (_ev, name, content) =>
     writeTempFile(name, content)
   )
+  ipcMain.handle('app.copyFileToInternalTmpDir', (_ev, name, pathToFile) => {
+    return copyFileToInternalTmpDir(name, pathToFile)
+  })
   ipcMain.handle('app.removeTempFile', (_ev, path) => removeTempFile(path))
 
   ipcMain.handle('electron.shell.openExternal', (_ev, url) =>
@@ -288,8 +364,8 @@ ${error instanceof Error ? error.message : inspect(error, { depth: null })}`
     'openMessageHTML',
     async (
       _ev,
-      window_id: string,
       accountId: number,
+      messageId: number,
       isContactRequest: boolean,
       subject: string,
       sender: string,
@@ -297,8 +373,8 @@ ${error instanceof Error ? error.message : inspect(error, { depth: null })}`
       content: string
     ) => {
       openHtmlEmailWindow(
-        window_id,
         accountId,
+        messageId,
         isContactRequest,
         subject,
         sender,
@@ -308,30 +384,21 @@ ${error instanceof Error ? error.message : inspect(error, { depth: null })}`
     }
   )
 
+  ipcMain.handle(
+    'startOutgoingVideoCall',
+    (_ev, accountId: number, chatId: number) => {
+      startOutgoingVideoCall(accountId, chatId)
+    }
+  )
+  const stopHandlingIncomingVideoCalls = startHandlingIncomingVideoCalls(
+    dcController.jsonrpcRemote
+  )
+
+  // the shutdown function
   return () => {
-    // the shutdown function
+    stopHandlingIncomingVideoCalls()
     dcController.jsonrpcRemote.rpc.stopIoForAllAccounts()
   }
-}
-
-async function writeClipboardToTempFile(): Promise<string> {
-  await mkdir(getDraftTempDir(), { recursive: true })
-  const formats = clipboard.availableFormats().sort()
-  log.debug('Clipboard available formats:', formats)
-  if (formats.length <= 0) {
-    throw new Error('No files to write')
-  }
-  const pathToFile = join(
-    getDraftTempDir(),
-    `paste.${mimeTypes.extension(formats[0]) || 'bin'}`
-  )
-  const buf =
-    mimeTypes.extension(formats[0]) === 'png'
-      ? clipboard.readImage().toPNG()
-      : clipboard.readBuffer(formats[0])
-  log.debug(`Writing clipboard ${formats[0]} to file ${pathToFile}`)
-  await writeFile(pathToFile, buf, 'binary')
-  return pathToFile
 }
 
 export async function writeTempFileFromBase64(
@@ -361,6 +428,26 @@ export async function writeTempFile(
   log.debug(`Writing tmp file ${pathToFile}`)
   await writeFile(pathToFile, Buffer.from(content, 'utf8'), 'binary')
   return pathToFile
+}
+
+export async function copyFileToInternalTmpDir(
+  fileName: string,
+  sourcePath: string
+): Promise<string> {
+  const sourceFileName = basename(sourcePath)
+  const sourceDir = dirname(sourcePath)
+  // make sure fileName includes only a file name, no path or whatever
+  fileName = basename(normalize(fileName))
+  let destinationDir = join(sourceDir, '..', INTERNAL_TMP_DIR_NAME)
+  if (sourceFileName !== fileName) {
+    // this is the case, when we copy a file that has an identifier
+    //  as name (given during the file deduplications process)
+    destinationDir = join(destinationDir, sourceFileName)
+  }
+  await mkdir(destinationDir, { recursive: true })
+  const targetPath = join(destinationDir, fileName)
+  await copyFile(sourcePath, targetPath)
+  return targetPath
 }
 
 async function removeTempFile(path: string) {

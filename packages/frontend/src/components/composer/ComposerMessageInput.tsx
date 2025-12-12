@@ -1,25 +1,44 @@
 import React from 'react'
-import { throttle } from '@deltachat-desktop/shared/util.js'
 
 import { ActionEmitter, KeybindAction } from '../../keybindings'
 import { getLogger } from '../../../../shared/logger'
 import { DialogContext } from '../../contexts/DialogContext'
+import { I18nContext } from '../../contexts/I18nContext'
 
 const log = getLogger('renderer/composer/ComposerMessageInput')
 
+const browserSupportsCSSFieldSizing = CSS.supports('field-sizing', 'content')
+const maxLines = 9
+
 type ComposerMessageInputProps = {
+  text: string
+  /**
+   * Whether the initial loading of the draft is being performed,
+   * e.g. after switching the chat, or after a
+   * {@linkcode BackendRemote.rpc.miscSetDraft} from outside of
+   * {@linkcode useDraft}.
+   */
+  loadingDraft: boolean
+  /**
+   * Whether to render the HTML or to return `null`.
+   */
+  hidden?: boolean
+  isMessageEditingMode: boolean
   chatId: number
-  sendMessage: () => void
+  sendMessageOrEditRequest: () => void
   enterKeySends: boolean
   onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void
-  updateDraftText: (text: string, InputChatId: number) => void
+  // used to show/hide send button
+  onChange: (text: string) => void
+  /**
+   * Called when ArrowUp is pressed and the input is empty.
+   * Only relevant for non-editing mode.
+   */
+  onArrowUpWhenEmpty?: () => void
 }
 
 type ComposerMessageInputState = {
-  text: string
-  chatId: number
   // error?:boolean|Error
-  loadingDraft: boolean
 }
 
 export default class ComposerMessageInput extends React.Component<
@@ -31,15 +50,9 @@ export default class ComposerMessageInput extends React.Component<
 
   composerSize: number
   setCursorPosition: number | false
-  textareaRef: React.RefObject<HTMLTextAreaElement>
-  throttledSaveDraft: ReturnType<typeof throttle>
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>
   constructor(props: ComposerMessageInputProps) {
     super(props)
-    this.state = {
-      text: '',
-      chatId: props.chatId,
-      loadingDraft: true,
-    }
 
     this.composerSize = 48
     this.setComposerSize = this.setComposerSize.bind(this)
@@ -48,17 +61,6 @@ export default class ComposerMessageInput extends React.Component<
     this.onChange = this.onChange.bind(this)
     this.insertStringAtCursorPosition =
       this.insertStringAtCursorPosition.bind(this)
-
-    // Remember that the draft might be updated from the outside
-    // of this component (with the `setText` method,
-    // e.g. when the draft gets cleared after sending a message).
-    // This can happen _after_ an `onChange` event but _before_
-    // the unrelying throttled function invokation.
-    this.throttledSaveDraft = throttle((text, chatId) => {
-      if (this.state.chatId === chatId) {
-        this.props.updateDraftText(text.trim() === '' ? '' : text, chatId)
-      }
-    }, 400)
 
     this.textareaRef = React.createRef()
     this.focus = this.focus.bind(this)
@@ -72,28 +74,6 @@ export default class ComposerMessageInput extends React.Component<
     ActionEmitter.unRegisterHandler(KeybindAction.Composer_Focus, this.focus)
   }
 
-  static getDerivedStateFromProps(
-    props: ComposerMessageInputProps,
-    currentState: ComposerMessageInputState
-  ) {
-    if (currentState.chatId !== props.chatId) {
-      return { chatId: props.chatId, text: '', loadingDraft: true }
-    }
-    return null
-  }
-
-  /**
-   * Sets the text area value, and ensures that `updateDraftText`
-   * does not get invoked until the next change to the draft text.
-   *
-   * Useful for setting / clearing draft text afer loading it from core,
-   * e.g. after sending the message or opening a chat with a.
-   */
-  setText(text: string | null) {
-    this.setState({ text: text || '', loadingDraft: false })
-    this.throttledSaveDraft.cancel()
-  }
-
   setComposerSize(size: number) {
     this.composerSize = size
   }
@@ -105,14 +85,7 @@ export default class ComposerMessageInput extends React.Component<
     }
   }
 
-  getText() {
-    return this.state.text
-  }
-
-  componentDidUpdate(
-    _prevProps: ComposerMessageInputProps,
-    prevState: ComposerMessageInputState
-  ) {
+  componentDidUpdate(prevProps: ComposerMessageInputProps) {
     if (this.setCursorPosition && this.textareaRef.current) {
       this.textareaRef.current.selectionStart = this.setCursorPosition
       this.textareaRef.current.selectionEnd = this.setCursorPosition
@@ -125,6 +98,9 @@ export default class ComposerMessageInput extends React.Component<
         )
       ) {
         // Focus on the current selection, hack for focusing on newlines
+        // TODO this pretty much doesn't work,
+        // because you can't focus an element that is covered by a dialog.
+        // See the comment in `onMouseUp` in `MessageListAndComposer`.
         if (this.context.hasOpenDialogs) {
           this.textareaRef.current.blur()
           this.textareaRef.current.focus()
@@ -132,26 +108,50 @@ export default class ComposerMessageInput extends React.Component<
       }
 
       this.setCursorPosition = false
+    } else {
+      // This is useful when entering / exiting the message editing mode.
+      if (
+        prevProps.hidden !== this.props.hidden &&
+        !this.props.hidden &&
+        this.props.text.length !== 0
+      ) {
+        this.moveCursorToTheEnd()
+      }
     }
-    if (prevState.chatId === this.state.chatId) {
+    if (
+      !browserSupportsCSSFieldSizing &&
+      prevProps.chatId === this.props.chatId
+    ) {
       this.resizeTextareaAndComposer()
     }
   }
 
+  private moveCursorToTheEnd() {
+    if (this.textareaRef.current == null) {
+      log.warn(
+        'Tried to move the cursor position to the end, ' +
+          'but textareaRef.current is',
+        this.textareaRef.current
+      )
+      return
+    }
+    this.textareaRef.current.selectionStart = this.props.text.length
+    this.textareaRef.current.selectionEnd = this.props.text.length
+  }
+
   onChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const text = e.target.value
-    this.setState({ text /*error: false*/ })
-    this.throttledSaveDraft(text, this.state.chatId)
+    this.props.onChange(text)
   }
 
   keyEventToAction(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     const enterKeySends = this.props.enterKeySends
 
     // ENTER + CTRL
-    if (e.code === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       return 'SEND'
       // ENTER
-    } else if (e.code === 'Enter' && !e.shiftKey) {
+    } else if (e.key === 'Enter' && !e.shiftKey) {
       return enterKeySends ? 'SEND' : undefined
     }
   }
@@ -160,14 +160,26 @@ export default class ComposerMessageInput extends React.Component<
     const action = this.keyEventToAction(e)
 
     if (action === 'SEND') {
-      this.props.sendMessage()
+      this.props.sendMessageOrEditRequest()
+      e.preventDefault()
+      e.stopPropagation()
+    } else if (
+      e.key === 'ArrowUp' &&
+      !e.ctrlKey &&
+      !e.metaKey &&
+      !e.altKey &&
+      !e.shiftKey &&
+      this.props.text.trim() === '' &&
+      this.props.onArrowUpWhenEmpty
+    ) {
+      this.props.onArrowUpWhenEmpty()
       e.preventDefault()
       e.stopPropagation()
     }
   }
 
   resizeTextareaAndComposer() {
-    const maxScrollHeight = 9 * 24
+    const maxScrollHeight = maxLines * 24
 
     const el = this.textareaRef.current
 
@@ -207,7 +219,7 @@ export default class ComposerMessageInput extends React.Component<
       throw new Error('textareaElem missing')
     }
     const { selectionStart, selectionEnd } = textareaElem
-    const textValue = this.state.text
+    const textValue = this.props.text
 
     const textBeforeCursor = textValue.slice(0, selectionStart)
     const textAfterCursor = textValue.slice(selectionEnd)
@@ -216,29 +228,49 @@ export default class ComposerMessageInput extends React.Component<
 
     this.setCursorPosition = textareaElem.selectionStart + str.length
 
-    this.setState({ text: updatedText })
-    this.throttledSaveDraft(updatedText, this.state.chatId)
+    this.props.onChange(updatedText)
   }
 
   render() {
+    if (this.props.hidden) {
+      return null
+    }
     return (
-      <textarea
-        className='message-input-area'
-        id='composer-textarea'
-        ref={this.textareaRef}
-        rows={1}
-        // intent={this.state.error ? 'danger' : 'none'}
-        // large
-        value={this.state.text}
-        onKeyDown={this.onKeyDown}
-        onChange={this.onChange}
-        onPaste={this.props.onPaste}
-        placeholder={window.static_translate('write_message_desktop')}
-        disabled={this.state.loadingDraft}
-        dir='auto'
-        spellCheck={true}
-        aria-keyshortcuts='Control+N'
-      />
+      <I18nContext.Consumer>
+        {({ writingDirection }) => (
+          <textarea
+            className={
+              'message-input-area' +
+              (browserSupportsCSSFieldSizing
+                ? ' use-field-sizing-css-prop'
+                : '')
+            }
+            style={{ '--maxLines': maxLines } as React.CSSProperties}
+            id='composer-textarea'
+            ref={this.textareaRef}
+            rows={1}
+            // intent={this.state.error ? 'danger' : 'none'}
+            // large
+            value={this.props.text}
+            onKeyDown={this.onKeyDown}
+            onChange={this.onChange}
+            onPaste={this.props.onPaste}
+            placeholder={
+              this.props.isMessageEditingMode
+                ? window.static_translate('edit_message')
+                : window.static_translate('write_message_desktop')
+            }
+            disabled={this.props.loadingDraft}
+            dir={
+              writingDirection === 'rtl'
+                ? 'rtl'
+                : 'auto' /* auto is based on content but defaults to ltr */
+            }
+            spellCheck={true}
+            aria-keyshortcuts='Control+M'
+          />
+        )}
+      </I18nContext.Consumer>
     )
   }
 }

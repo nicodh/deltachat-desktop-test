@@ -1,9 +1,11 @@
+@use '../mixins';
+
 .qr-code-switch {
   display: flex;
   background-color: var(--globalBackground);
 
   button {
-    @include button-reset;
+    @include mixins.button-reset;
 
     width: 50%;
     cursor: pointer;
@@ -41,4 +43,19 @@
   img.show-qr-dialog-qr-image {
     min-height: 0;
   }
+}
+
+.copy-link-icon {
+  width: 20px;
+  height: 20px;
+  transform: rotate(135deg);
+  margin-inline-end: 8px;
+  @include mixins.color-svg('./images/icons/link.svg', currentcolor, 100%);
+}
+
+.copy-content-preview {
+  background-color: var(--buttonSecondaryBackground);
+  word-wrap: break-word;
+  word-break: break-all;
+  padding: 10px;
 }

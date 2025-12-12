@@ -11,6 +11,8 @@ import useDialog from '../hooks/dialog/useDialog'
 import WebxdcSaveToChatDialog from './dialogs/WebxdcSendToChat'
 import { saveLastChatId } from '../backend/chat'
 import useChat from '../hooks/chat/useChat'
+import SettingsStoreInstance from '../stores/settings'
+import { SCAN_CONTEXT_TYPE } from '../hooks/useProcessQr'
 
 type Props = {
   accountId?: number
@@ -38,7 +40,7 @@ export default function RuntimeAdapter({
         throw new Error('accountId is not set')
       }
 
-      processQr(accountId, url)
+      processQr(accountId, url, SCAN_CONTEXT_TYPE.DEFAULT)
     }
 
     runtime.setNotificationCallback(
@@ -55,10 +57,19 @@ export default function RuntimeAdapter({
           clearNotificationsForChat(notificationAccountId, chatId)
         }
         if (msgId) {
-          window.__internal_jump_to_message?.({
-            msgId,
-            scrollIntoViewArg: { block: 'center' },
-          })
+          window.__internal_jump_to_message_asap = {
+            accountId: notificationAccountId,
+            chatId,
+            jumpToMessageArgs: [
+              {
+                msgId,
+                scrollIntoViewArg: { block: 'center' },
+                // We probably want the composer to be focused.
+                focus: false,
+              },
+            ],
+          }
+          window.__internal_check_jump_to_message?.()
         }
       }
     )
@@ -75,10 +86,14 @@ export default function RuntimeAdapter({
   }, [accountId, jumpToMessage, processQr, selectChat, closeAllDialogs])
 
   useEffect(() => {
-    runtime.onWebxdcSendToChat = (file, text) => {
+    runtime.onWebxdcSendToChat = async (file, text, account) => {
       if (openSendToDialogId.current) {
         closeDialog(openSendToDialogId.current)
         openSendToDialogId.current = undefined
+      }
+
+      if (account && account !== accountId) {
+        await window.__selectAccount(account)
       }
 
       openSendToDialogId.current = openDialog(WebxdcSaveToChatDialog, {
@@ -86,7 +101,19 @@ export default function RuntimeAdapter({
         file,
       })
     }
-  }, [closeDialog, openDialog])
+  }, [closeDialog, openDialog, accountId])
+
+  useEffect(() => {
+    runtime.onToggleNotifications = () => {
+      const settings = SettingsStoreInstance.getState()
+      if (settings) {
+        SettingsStoreInstance.effect.setDesktopSetting(
+          'notifications',
+          !settings.desktopSettings.notifications
+        )
+      }
+    }
+  }, [])
 
   return <>{children}</>
 }

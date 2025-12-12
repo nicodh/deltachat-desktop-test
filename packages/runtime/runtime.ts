@@ -1,4 +1,5 @@
 import {
+  AutostartState,
   DcNotification,
   DcOpenWebxdcParameters,
   DesktopSettingsType,
@@ -13,6 +14,21 @@ import { BaseDeltaChat } from '@deltachat/jsonrpc-client'
 import type { getLogger as getLoggerFunction } from '@deltachat-desktop/shared/logger.js'
 import type { setLogHandler as setLogHandlerFunction } from '@deltachat-desktop/shared/logger.js'
 
+export type MediaType = 'microphone' | 'camera'
+export type MediaAccessStatus =
+  | 'not-determined'
+  | 'granted'
+  | 'denied'
+  | 'restricted'
+  | 'unknown'
+
+export type DropListener = {
+  /** element that gets compared against the event target,
+  either by bounds or by event target path */
+  elementRef: { current: HTMLElement | null } // I don't want to import add react to dependencies just for this
+  handler: (paths: string[]) => void
+}
+
 /**
  * Offers an abstraction Layer to make it easier to capsulate
  * context specific functions (like electron, browser, tauri, etc)
@@ -25,14 +41,13 @@ export interface Runtime {
   ): BaseDeltaChat<any>
   /**
    * open html message, in dedicated window or in system browser
-   * @param window_id unique id that we know if it's already open, should be accountid+"-"+msgid
    * @param subject subject of the email (or start of message, if we don't have a subject?)
    * @param sender sender display name
    * @param content content of the html mail
    */
   openMessageHTML(
-    window_id: string,
     accountId: number,
+    messageId: number,
     isContactRequest: boolean,
     subject: string,
     sender: string,
@@ -56,6 +71,8 @@ export interface Runtime {
   reloadWebContent(): void
   openLogFile(): void
   getCurrentLogLocation(): string
+  /** Opens the help window at the specified anchor.
+   *  Anchor needs to be written without the prefixed `#` */
   openHelpWindow(anchor?: string): void
   /**
    * get the commandline arguments
@@ -73,6 +90,7 @@ export interface Runtime {
   showOpenFileDialog(options: RuntimeOpenDialogOptions): Promise<string[]>
   downloadFile(pathToSource: string, filename: string): Promise<void>
   transformBlobURL(blob: string): string
+  transformStickerURL(sticker_path: string): string
   readClipboardText(): Promise<string>
   /**
    * @returns promise that resolves into base64 encoded image string
@@ -101,6 +119,11 @@ export interface Runtime {
   notifyWebxdcMessageChanged(accountId: number, instanceId: number): void
   notifyWebxdcInstanceDeleted(accountId: number, instanceId: number): void
 
+  /**
+   * Initiates and conducts the video call fully, from start to end.
+   */
+  startOutgoingVideoCall(accountId: number, chatId: number): void
+
   // control app
   restartApp(): void
 
@@ -112,21 +135,19 @@ export interface Runtime {
   setBadgeCounter(value: number): void
   showNotification(data: DcNotification): void
   clearAllNotifications(): void
-  clearNotifications(chatId: number): void
+  clearNotifications(accountId: number, chatId: number): void
   /** enables to set a callback (used in frontend RuntimeAdapter) */
   setNotificationCallback(
     cb: (data: { accountId: number; chatId: number; msgId: number }) => void
   ): void
-  /** @param name optional name needed for browser */
-  writeClipboardToTempFile(name?: string): Promise<string>
   writeTempFileFromBase64(name: string, content: string): Promise<string>
   writeTempFile(name: string, content: string): Promise<string>
+  /** make sure to sanitize filename to avoid stuff like ../../ */
+  copyFileToInternalTmpDir(
+    fileName: string,
+    sourcePath: string
+  ): Promise<string>
   removeTempFile(path: string): Promise<void>
-  getWebxdcDiskUsage(accountId: number): Promise<{
-    total_size: number
-    data_size: number
-  }>
-  clearWebxdcDOMStorage(accountId: number): Promise<void>
   getAvailableThemes(): Promise<Theme[]>
   getActiveTheme(): Promise<{
     theme: Theme
@@ -136,11 +157,14 @@ export interface Runtime {
 
   /** only support this if you have a real implementation for `isDroppedFileFromOutside`  */
   onDragFileOut(file: string): void
+  /** Set drag listener to handle drag and drop events */
+  setDropListener(onDrop: DropListener | null): void
   /** guard function that checks if it is a file from `onDragFileOut`, if so it denies the drop.
    * It checks by checking if file path contains references to the deltachat bob dir,
    */
-  isDroppedFileFromOutside(file: File): boolean
+  isDroppedFileFromOutside(file: string): boolean
 
+  getAutostartState(): Promise<AutostartState>
   // callbacks to set
   onChooseLanguage: ((locale: string) => Promise<void>) | undefined
   /** backend notifies ui to reload theme,
@@ -153,10 +177,17 @@ export interface Runtime {
   onWebxdcSendToChat:
     | ((
         file: { file_name: string; file_content: string } | null,
-        text: string | null
+        text: string | null,
+        account?: number
       ) => void)
     | undefined
   onResumeFromSleep: (() => void) | undefined
+  onToggleNotifications: (() => void) | undefined
+
+  checkMediaAccess: (mediaType: MediaType) => Promise<MediaAccessStatus>
+
+  // undefined if the platform does not support askForMediaAccess
+  askForMediaAccess: (mediaType: MediaType) => Promise<boolean | undefined>
 }
 
 export const runtime: Runtime = (window as any).r

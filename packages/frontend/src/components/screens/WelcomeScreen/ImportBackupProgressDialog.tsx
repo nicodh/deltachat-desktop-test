@@ -16,6 +16,7 @@ import { selectedAccountId } from '../../../ScreenController'
 
 import type { DcEventType } from '@deltachat/jsonrpc-client'
 import type { DialogProps } from '../../../contexts/DialogContext'
+import { unknownErrorToString } from '../../helpers/unknownErrorToString'
 
 type Props = {
   backupFile: string
@@ -45,15 +46,8 @@ export default function ImportBackupProgressDialog({
       try {
         log.debug(`Starting backup import of ${backupFile}`)
         await BackendRemote.rpc.importBackup(accountId, backupFile, null)
-        await BackendRemote.rpc.setConfig(
-          accountId,
-          'verified_one_on_one_chats',
-          '1'
-        )
       } catch (err) {
-        if (err instanceof Error) {
-          setError(err.message)
-        }
+        setError(unknownErrorToString(err))
         return
       }
       onClose()

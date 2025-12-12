@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react'
 
-import { Credentials } from '../../types-app'
 import ImageBackdrop from '../ImageBackdrop'
-import LoginForm, {
-  defaultCredentials,
-  ConfigureProgressDialog,
-} from '../LoginForm'
+import LoginForm from '../LoginForm'
+import { ConfigureProgressDialog } from '../dialogs/ConfigureProgressDialog'
+import { defaultCredentials, Credentials } from '../Settings/DefaultCredentials'
 import Dialog, {
   DialogBody,
   DialogContent,
@@ -57,7 +55,7 @@ export default function AccountSetupScreen({
   // and not an explicit keyboard handling
   const onKeyDown = useCallback(
     (ev: KeyboardEvent) => {
-      if (ev.code === 'Enter') {
+      if (ev.key === 'Enter') {
         ev.stopPropagation()
         ev.preventDefault()
         if (hasOpenDialogs) {
@@ -84,7 +82,7 @@ export default function AccountSetupScreen({
   return (
     <ImageBackdrop variant='welcome'>
       <Dialog canOutsideClickClose={false} onClose={() => {}} fixed>
-        <DialogHeader title={tx('login_explain')} />
+        <DialogHeader title={tx('manual_account_setup_option')} />
         <DialogBody>
           <DialogContent>
             <LoginForm
@@ -98,7 +96,10 @@ export default function AccountSetupScreen({
             <FooterActionButton onClick={onCancel}>
               {tx('cancel')}
             </FooterActionButton>
-            <FooterActionButton onClick={onClickLogin}>
+            <FooterActionButton
+              onClick={onClickLogin}
+              data-testid='login-with-credentials'
+            >
               {tx('login_title')}
             </FooterActionButton>
           </FooterActions>

@@ -6,7 +6,7 @@ import { existsSync } from 'fs'
 
 export let appx = false
 
-export async function isWindowsStorePackage() {
+export async function initIsWindowsStorePackageVar() {
   if (platform() === 'win32') {
     const app_path = app.getAppPath()
     try {
@@ -17,12 +17,12 @@ export async function isWindowsStorePackage() {
         )
       )
       if (info.isAPPX) {
-        /* ignore-console-log */
+        // eslint-disable-next-line no-console
         console.info('App is probably running as appx')
         appx = info.isAPPX
       }
-    } catch (error) {
-      /* ignore-console-log */
+    } catch (_error) {
+      // eslint-disable-next-line no-console
       console.warn(
         'Could not fetch windows build info, this is normal in dev mode'
       )

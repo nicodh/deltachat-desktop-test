@@ -1,9 +1,9 @@
 import React, { createRef } from 'react'
 import { Component } from 'react'
 import { DcEventType } from '@deltachat/jsonrpc-client'
-import { debounce } from 'debounce'
+import { throttle } from '@deltachat-desktop/shared/util'
 
-import MainScreen from './components/screens/MainScreen'
+import MainScreen from './components/screens/MainScreen/MainScreen'
 import { getLogger } from '../../shared/logger'
 import AccountSetupScreen from './components/screens/AccountSetupScreen'
 import WelcomeScreen from './components/screens/WelcomeScreen'
@@ -96,11 +96,26 @@ export default class ScreenController extends Component {
       }
     }
     updateDeviceChats()
+
+    BackendRemote.rpc.getAllAccountIds().then(accountIds => {
+      for (const accountId of accountIds) {
+        BackendRemote.rpc
+          .setConfig(accountId, 'disable_idle', null)
+          .catch(() => log.error("failed to reset 'disable_idle' config key"))
+      }
+    })
   }
 
   private async _getLastUsedAccount(): Promise<number | undefined> {
-    const lastLoggedInAccountId = (await runtime.getDesktopSettings())
+    let lastLoggedInAccountId
+    const desktopSettingsLastAccount = (await runtime.getDesktopSettings())
       .lastAccount
+    if (desktopSettingsLastAccount != undefined) {
+      lastLoggedInAccountId = desktopSettingsLastAccount
+      runtime.setDesktopSetting('lastAccount', undefined)
+    } else {
+      lastLoggedInAccountId = await BackendRemote.rpc.getSelectedAccountId()
+    }
     try {
       if (lastLoggedInAccountId) {
         await BackendRemote.rpc.getAccountInfo(lastLoggedInAccountId)
@@ -108,7 +123,7 @@ export default class ScreenController extends Component {
       } else {
         return undefined
       }
-    } catch (error) {
+    } catch (_error) {
       log.warn(
         `getLastUsedAccount: account with id ${lastLoggedInAccountId} does not exist`
       )
@@ -142,14 +157,7 @@ export default class ScreenController extends Component {
       await BackendRemote.rpc.startIo(accountId)
     }
 
-    BackendRemote.rpc.getInfo(accountId).then(info => {
-      log.info('account_info', info)
-    })
-    BackendRemote.rpc.getSystemInfo().then(info => {
-      log.info('system_info', info)
-    })
-
-    await runtime.setDesktopSetting('lastAccount', accountId)
+    await BackendRemote.rpc.selectAccount(accountId)
   }
 
   async unSelectAccount() {
@@ -187,7 +195,7 @@ export default class ScreenController extends Component {
     if (this.lastAccountBeforeAddingNewAccount) {
       try {
         await this.selectAccount(this.lastAccountBeforeAddingNewAccount)
-      } catch (error) {
+      } catch (_error) {
         this.changeScreen(Screens.NoAccountSelected)
       }
     } else {
@@ -217,9 +225,14 @@ export default class ScreenController extends Component {
     this.changeScreen(Screens.NoAccountSelected)
   }
 
-  userFeedback(message: userFeedback | false) {
+  userFeedback(message: userFeedback | false, clickToClose = false) {
     if (message !== false && this.state.message === message) return // one at a time, cowgirl
     this.setState({ message })
+    if (!clickToClose && message && message.type !== 'error') {
+      window.setTimeout(() => {
+        this.userFeedback(false)
+      }, 3000)
+    }
   }
 
   userFeedbackClick() {
@@ -246,13 +259,13 @@ export default class ScreenController extends Component {
   componentDidMount() {
     BackendRemote.on('Error', this.onError)
 
-    runtime.onResumeFromSleep = debounce(() => {
+    runtime.onResumeFromSleep = throttle(() => {
       log.info('onResumeFromSleep')
       // update timestamps
       updateTimestamps()
       // call maybe network
       BackendRemote.rpc.maybeNetwork()
-    }, 1000)
+    }, 2000)
 
     this.startup().then(() => {
       runtime.emitUIFullyReady()
@@ -342,7 +355,6 @@ export default class ScreenController extends Component {
             userFeedback: this.userFeedback,
             changeScreen: this.changeScreen,
             screen: this.state.screen,
-            addAndSelectAccount: this.addAndSelectAccount,
             smallScreenMode: this.state.smallScreenMode,
           }}
         >

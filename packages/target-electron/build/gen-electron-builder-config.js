@@ -76,7 +76,7 @@ build['asarUnpack'] = [] // ['./node_modules/@deltachat/stdio-rpc-server']
 // 'html-dist/xdcs/' should be in 'asarUnpack', but that had "file already exists" errors in the ci
 // see https://github.com/deltachat/deltachat-desktop/pull/3876, so we now do it "manually" in the afterPackHook
 
-build['afterPack'] = './build/afterPackHook.cjs'
+build['afterPack'] = './build/afterPackHook.mjs'
 build['afterSign'] = './build/afterSignHook.cjs'
 
 if (typeof env.NO_ASAR !== 'undefined' && env.NO_ASAR != 'false') {
@@ -100,7 +100,7 @@ build['mac'] = {
   entitlementsInherit: 'build/entitlements.mac.plist',
   extendInfo: {
     NSCameraUsageDescription: 'For scanning qr codes.',
-    // NSMicrophoneUsageDescription: "For voice messages",
+    NSMicrophoneUsageDescription: 'For recording voice messages',
     ITSAppUsesNonExemptEncryption: false,
   },
   gatekeeperAssess: true,
@@ -188,6 +188,7 @@ const languages = [
   'el',
   // 'eo',  not supported by ms-store
   'es',
+  'et',
   'eu',
   'fa',
   'fi',
@@ -198,7 +199,6 @@ const languages = [
   'id',
   'it',
   'ja-jp',
-  'km',
   'ko',
   'lt',
   'nb',

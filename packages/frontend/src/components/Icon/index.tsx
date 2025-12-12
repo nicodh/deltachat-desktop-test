@@ -9,25 +9,22 @@ export type IconName =
   | 'audio-muted'
   | 'bell'
   | 'brightness-6'
-  | 'chats'
   | 'chevron-left'
   | 'chevron-right'
   | 'code-tags'
   | 'cross'
   | 'devices'
   | 'download'
-  | 'eye-off'
-  | 'eye-open'
   | 'favorite'
   | 'forum'
   | 'image'
   | 'image_outline'
   | 'info'
   | 'lead-pencil'
-  | 'list'
   | 'map'
   | 'minus'
   | 'more'
+  | 'more_vert'
   | 'open_in_new'
   | 'palette'
   | 'paperclip'
@@ -39,21 +36,25 @@ export type IconName =
   | 'qr'
   | 'question_mark'
   | 'reaction'
-  | 'reset-image'
   | 'sell'
   | 'settings'
   | 'swap_vert'
   | 'swap_hor'
-  | 'undo'
   | 'upload-file'
+
+type IconColoring =
+  | 'navbar'
+  | 'contextMenu'
+  | 'fullscreenControls'
+  | 'appearanceSelector'
+  | 'remove'
 
 type PropsBase = {
   className?: string
   onClick?: (ev: Event | React.SyntheticEvent<Element, Event>) => void
   icon: IconName
-  coloring?: keyof Omit<typeof styles, 'icon'>
+  coloring?: IconColoring
   size?: number
-  rotation?: number
 }
 type JustIconProps = PropsBase & {
   /** Consider using IconButton instead */
@@ -66,7 +67,6 @@ type IconButtonProps = PropsBase & {
 export default function Icon({
   coloring,
   size = 20,
-  rotation = 0,
   icon,
   className,
 }: JustIconProps) {
@@ -78,7 +78,6 @@ export default function Icon({
         className
       )}
       style={{
-        transform: `rotate(${rotation}deg)`,
         WebkitMaskImage: `url(./images/icons/${icon}.svg)`,
         height: `${size}px`,
         width: `${size}px`,
@@ -87,16 +86,10 @@ export default function Icon({
   )
 }
 
-export function IconButton({
-  coloring,
-  size,
-  rotation,
-  icon,
-  ...rest
-}: IconButtonProps) {
+export function IconButton({ coloring, size, icon, ...rest }: IconButtonProps) {
   return (
-    <button {...rest} className={classNames(styles.iconButton)}>
-      <Icon coloring={coloring} size={size} rotation={rotation} icon={icon} />
+    <button type='button' {...rest} className={classNames(styles.iconButton)}>
+      <Icon coloring={coloring} size={size} icon={icon} />
     </button>
   )
 }

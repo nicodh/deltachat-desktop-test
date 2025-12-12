@@ -1,14 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import classNames from 'classnames'
 
-import Dialog, {
-  DialogBody,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  FooterActions,
-} from '../../Dialog'
-import FooterActionButton from '../../Dialog/FooterActionButton'
+import Dialog, { DialogBody, DialogContent, DialogHeader } from '../../Dialog'
 import useTranslationFunction from '../../../hooks/useTranslationFunction'
 import { selectedAccountId } from '../../../ScreenController'
 import { BackendRemote } from '../../../backend-com'
@@ -43,7 +36,7 @@ export default function ReactionsDialog({
 
   return (
     <Dialog width={400} onClose={onClose}>
-      <DialogHeader title={tx('reactions')} />
+      <DialogHeader title={tx('reactions')} onClose={onClose} />
       <DialogBody>
         <DialogContent>
           <ReactionsDialogList
@@ -52,11 +45,6 @@ export default function ReactionsDialog({
           />
         </DialogContent>
       </DialogBody>
-      <DialogFooter>
-        <FooterActions>
-          <FooterActionButton onClick={onClose}>{tx('ok')}</FooterActionButton>
-        </FooterActions>
-      </DialogFooter>
     </Dialog>
   )
 }
@@ -125,6 +113,7 @@ function ReactionsDialogListItem(props: {
 
   return (
     <button
+      type='button'
       ref={ref}
       onClick={() => {
         if (notFromSelf) {
@@ -146,7 +135,13 @@ function ReactionsDialogListItem(props: {
       onFocus={rovingTabindex.setAsActiveElement}
     >
       <div className={styles.reactionsDialogAvatar}>
-        <AvatarFromContact contact={contact} />
+        <AvatarFromContact
+          contact={contact}
+          // Avatar is purely decorative here,
+          // and is redundant accessibility-wise,
+          // because we display the contact name below.
+          aria-hidden={true}
+        />
       </div>
       <div className={styles.reactionsDialogContactName}>
         <ContactName displayName={contact.displayName} />

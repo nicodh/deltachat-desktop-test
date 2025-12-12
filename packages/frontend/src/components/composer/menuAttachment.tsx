@@ -1,15 +1,11 @@
-import React, { useCallback, useContext } from 'react'
+import React, { useContext } from 'react'
 import { dirname, basename } from 'path'
 
 import { runtime } from '@deltachat-desktop/runtime-interface'
-import { useStore } from '../../stores/store'
-import SettingsStoreInstance from '../../stores/settings'
 import { IMAGE_EXTENSIONS } from '../../../../shared/constants'
-import useConfirmationDialog from '../../hooks/dialog/useConfirmationDialog'
 import useTranslationFunction from '../../hooks/useTranslationFunction'
 import useDialog from '../../hooks/dialog/useDialog'
 import SelectContactDialog from '../dialogs/SelectContact'
-import useVideoChat from '../../hooks/useVideoChat'
 import { LastUsedSlot, rememberLastUsedPath } from '../../utils/lastUsedPaths'
 import { selectedAccountId } from '../../ScreenController'
 import Icon from '../Icon'
@@ -20,13 +16,12 @@ import { ContextMenuContext } from '../../contexts/ContextMenuContext'
 import type { T } from '@deltachat/jsonrpc-client'
 import { BackendRemote } from '../../backend-com'
 import ConfirmSendingFiles from '../dialogs/ConfirmSendingFiles'
-import { Viewtype } from '@deltachat/jsonrpc-client/dist/generated/types'
 import useMessage from '../../hooks/chat/useMessage'
 
 type Props = {
-  addFileToDraft: (file: string, viewType: T.Viewtype) => void
+  addFileToDraft: (file: string, fileName: string, viewType: T.Viewtype) => void
   showAppPicker: (show: boolean) => void
-  selectedChat: T.FullChat | null
+  selectedChat: Pick<T.BasicChat, 'name' | 'id'> | null
 }
 
 // Main component that creates the menu and popover
@@ -38,16 +33,13 @@ export default function MenuAttachment({
   const { openContextMenu } = useContext(ContextMenuContext)
 
   const tx = useTranslationFunction()
-  const openConfirmationDialog = useConfirmationDialog()
-  const { sendVideoChatInvitation } = useVideoChat()
   const { openDialog, closeDialog } = useDialog()
   const { sendMessage } = useMessage()
-  const [settings] = useStore(SettingsStoreInstance)
   const accountId = selectedAccountId()
 
   const confirmSendMultipleFiles = (
     filePaths: string[],
-    msgViewType: Viewtype
+    msgViewType: T.Viewtype
   ) => {
     if (!selectedChat) {
       throw new Error('no chat selected')
@@ -61,16 +53,16 @@ export default function MenuAttachment({
         }
 
         for (const filePath of filePaths) {
-          sendMessage(accountId, selectedChat.id, {
+          await sendMessage(accountId, selectedChat.id, {
             file: filePath,
+            // filename
             viewtype: msgViewType,
-          }).then(() => {
-            // start sending other files, don't wait until last file is sent
-            if (runtime.getRuntimeInfo().target === 'browser') {
-              // browser created temp files during upload that can now be cleaned up
-              runtime.removeTempFile(filePath)
-            }
           })
+          // start sending other files, don't wait until last file is sent
+          if (runtime.getRuntimeInfo().target === 'browser') {
+            // browser created temp files during upload that can now be cleaned up
+            runtime.removeTempFile(filePath)
+          }
         }
       },
     })
@@ -94,7 +86,7 @@ export default function MenuAttachment({
 
     if (files.length === 1) {
       setLastPath(dirname(files[0]))
-      addFileToDraft(files[0], 'File')
+      addFileToDraft(files[0], basename(files[0]), 'File')
     } else if (files.length > 1) {
       confirmSendMultipleFiles(files, 'File')
     }
@@ -118,33 +110,11 @@ export default function MenuAttachment({
 
     if (files.length === 1) {
       setLastPath(dirname(files[0]))
-      addFileToDraft(files[0], 'Image')
+      addFileToDraft(files[0], basename(files[0]), 'Image')
     } else if (files.length > 1) {
       confirmSendMultipleFiles(files, 'Image')
     }
   }
-
-  const onVideoChat = useCallback(async () => {
-    if (!selectedChat) {
-      return
-    }
-
-    const confirmed = await openConfirmationDialog({
-      header: tx('videochat_invite_user_to_videochat', selectedChat.name),
-      message: tx('videochat_invite_user_hint'),
-      confirmLabel: tx('ok'),
-    })
-
-    if (confirmed) {
-      sendVideoChatInvitation(accountId, selectedChat.id)
-    }
-  }, [
-    accountId,
-    openConfirmationDialog,
-    selectedChat,
-    sendVideoChatInvitation,
-    tx,
-  ])
 
   const selectContact = async () => {
     let dialogId = ''
@@ -164,11 +134,9 @@ export default function MenuAttachment({
         const cleanAuthname = (
           selectedContact.authName || selectedContact.address
         ).replace(/[^a-z_A-Z0-9]/gi, '')
-        const tmp_file = await runtime.writeTempFile(
-          `VCard-${cleanAuthname}.vcf`,
-          vCardContact
-        )
-        addFileToDraft(tmp_file, 'Vcard')
+        const fileName = `VCard-${cleanAuthname}.vcf`
+        const tmp_file = await runtime.writeTempFile(fileName, vCardContact)
+        addFileToDraft(tmp_file, fileName, 'Vcard')
         closeDialog(dialogId)
       }
     }
@@ -181,21 +149,6 @@ export default function MenuAttachment({
 
   // item array used to populate menu
   const menu: (ContextMenuItem | false)[] = [
-    !!settings?.settings.webrtc_instance && {
-      icon: 'phone',
-      label: tx('videochat'),
-      action: onVideoChat,
-    },
-    {
-      icon: 'image',
-      label: tx('image'),
-      action: addFilenameMedia.bind(null),
-    },
-    {
-      icon: 'upload-file',
-      label: tx('file'),
-      action: addFilenameFile.bind(null),
-    },
     {
       icon: 'person',
       label: tx('contact'),
@@ -206,6 +159,17 @@ export default function MenuAttachment({
       label: tx('webxdc_app'),
       action: selectAppPicker.bind(null),
       dataTestid: 'open-app-picker',
+    },
+    {
+      icon: 'upload-file',
+      label: tx('file'),
+      action: addFilenameFile.bind(null),
+    },
+    { type: 'separator' },
+    {
+      icon: 'image',
+      label: tx('image'),
+      action: addFilenameMedia.bind(null),
     },
   ]
 
@@ -223,11 +187,15 @@ export default function MenuAttachment({
       x,
       y,
       items: menu,
+      ariaAttrs: {
+        'aria-labelledby': 'attachment-menu-button',
+      },
     })
   }
 
   return (
     <button
+      type='button'
       aria-label={tx('menu_add_attachment')}
       id='attachment-menu-button'
       data-testid='open-attachment-menu'

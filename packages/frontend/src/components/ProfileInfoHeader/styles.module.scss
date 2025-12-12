@@ -1,6 +1,7 @@
 .profileInfoHeader {
   display: flex;
-  --local-avatar-vertical-margin: 0;
+  flex-direction: column;
+  text-align: center;
 }
 
 .infoContainer {
@@ -9,7 +10,6 @@
   flex-grow: 1;
   flex-wrap: nowrap;
   justify-content: center;
-  margin-left: 17px;
   word-break: break-word;
 }
 
@@ -17,7 +17,7 @@
   color: var(--globalText);
   font-size: x-large;
   line-height: 1.25;
-  margin: 0;
+  margin: 15px 0 0;
   user-select: text;
 }
 
@@ -27,9 +27,4 @@
   overflow: hidden;
   text-overflow: ellipsis;
   user-select: text;
-}
-
-.verifiedIconWrapper {
-  position: relative;
-  top: -2px;
 }

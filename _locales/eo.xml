@@ -22,31 +22,46 @@
     <string name="join">Aliĝi</string>
     <string name="rejoin">Realiĝi</string>
     <string name="delete">Forigi</string>
+    <string name="delete_for_me">Forigi por mi</string>
+    <string name="delete_for_everyone">Forigi por ĉiuj</string>
     <string name="info">Informoj</string>
     <string name="update">Ĝisdatigi</string>
     <string name="emoji">Emoji</string>
     <string name="attachment">Aldonaĵo</string>
+    <!-- the placeholder will be replaced by the name of the image or file to attach -->
+    <string name="ask_attach">Ĉu alkroĉi \"%1$s\"?</string>
     <string name="back">Reen</string>
     <string name="close">Fermi</string>
+    <string name="close_window">Fermi fenestron</string>
     <string name="forward">Plusendi</string>
+    <string name="create">Krei</string>
+    <string name="reset">Restartigi</string>
+    <string name="later">Poste</string>
     <!-- "Resend" means "Sending the selected message(s) again to the same chat". The string is used in a menu and should be as short as possible. Resending may be needed after failures or to repost old messages to new members. -->
     <string name="resend">Resendi</string>
+    <string name="edited">Redaktita</string>
+    <string name="edit_message">Redakti mesaĝon</string>
     <!-- Verb "to archive", as in "put a chat in the archive", not a noun "The Archive". -->
     <string name="archive">Arĥivi</string>
     <!-- Verb "to unarchive", as in "remove a chat from the archive", opposite of the previous string -->
     <string name="unarchive">Malarĥivi</string>
     <string name="mute">Muta sciigoj</string>
+    <string name="muted">Silentigita</string>
     <string name="ephemeral_messages">Memviŝontaj mesaĝoj</string>
     <string name="ephemeral_messages_hint">Aplikebla al ĉiuj anoj de tiu ĉi babilejo kiuj uzas Delta Chat; ili ankoraŭ povas kopii, konservi kaj plusendi mesaĝojn, kaj uzi aliajn retpoŝtajn klientojn.</string>
     <string name="save">Konservi</string>
     <string name="chat">Babilo</string>
     <string name="media">Aŭdovidaĵoj</string>
+    <string name="apps_and_media">Apoj kaj vidaĵoj</string>
     <string name="profile">Profilo</string>
+    <string name="all_profiles">Ĉiuj profiloj</string>
+    <string name="current_profile">Aktuala profilo</string>
     <string name="main_menu">Ĉefa menuo</string>
     <string name="start_chat">Komenci Babiladon</string>
     <string name="show_full_message">Afiŝu la tutan mesaĝon...</string>
     <!-- Stay short here, say ~16 characters. The source string could also be "All Read", maybe that hint can make translations easier :) -->
     <string name="mark_all_as_read">Marki ĉiujn legitaj</string>
+    <string name="mark_as_read">Marki kiel legita</string>
     <!-- Shortest text for "Mark as being read". In english, this could be "Read" (past tense of "to read"), in german, this could be "Gelesen". -->
     <string name="mark_as_read_short">Legi</string>
     <!-- Placeholder text when something is loading -->
@@ -60,7 +75,9 @@
     <string name="always_load_remote_images">Ĉiam ŝargu forajn bildojn</string>
     <string name="once">Unufoje</string>
     <string name="show_warning">Afiŝu averton</string>
+    <!-- deprecated, UI must not offer an option to show the password -->
     <string name="show_password">Montri pasvorton</string>
+    <!-- deprecated, UI must not offer an option to show the password -->
     <string name="hide_password">Kaŝi pasvorton</string>
     <string name="not_now">Ne nun</string>
     <string name="never">Neniam</string>
@@ -75,6 +92,8 @@
     <string name="no_app_to_handle_data">Ne povas trovi aplikaĵon por trakti tiun ĉi tipon de datumo.</string>
     <string name="no_browser_installed">Neniu retumilo instalita.</string>
     <string name="file_not_found">Ne povis trovi %1$s.</string>
+    <!-- the placeholder will be replaced by the name of a file -->
+    <string name="cannot_save_file">Ne eblas konservi la dosieron %1$s.</string>
     <string name="copied_to_clipboard">Kopiita al tondujo</string>
     <string name="contacts_headline">Kontaktoj</string>
     <string name="email_address">Retadreso</string>
@@ -95,11 +114,22 @@
     <!-- Refers to the time a contact was last seen. Shown below contact name in the profile. The placeholder will be replaced by a relative point in time as "3 minutes ago" (see https://momentjs.com for more examples and languages)-->
     <string name="last_seen_relative">Laste vidita %1$s</string>
     <string name="last_seen_unknown">Laste vidita: nedisponebla informo</string>
+    <!-- Shown in call duration. Avoid abbreviations, prefer full words ex. "N seconds". -->
+    <plurals name="n_seconds_ext">
+        <item quantity="one">%d sekundo</item>
+        <item quantity="other">%d sekundoj</item>
+    </plurals>
+    <!-- Shown in call duration. Avoid abbreviations, prefer full words ex. "N minutes". -->
+    <plurals name="n_minutes_ext">
+        <item quantity="one">%d minuto</item>
+        <item quantity="other">%d minutoj</item>
+    </plurals>
     <!-- Shown beside messages that are "N minutes old". Prefer short strings, or well-known abbreviations. -->
     <plurals name="n_minutes">
         <item quantity="one">%d min</item>
         <item quantity="other">%d min</item>
     </plurals>
+
     <!-- Shown beside messages that are "N hours old". Prefer short strings, or well-known abbreviations. -->
     <plurals name="n_hours">
         <item quantity="one">%d horo</item>
@@ -117,6 +147,10 @@
         <item quantity="one">%dmesaĝo</item>
         <item quantity="other">%d mesaĝoj</item>
     </plurals>
+    <plurals name="n_reactions">
+        <item quantity="one">%d reago</item>
+        <item quantity="other">%d reagoj</item>
+    </plurals>
     <plurals name="n_members">
         <item quantity="one">%d ano</item>
         <item quantity="other">%d anoj </item>
@@ -130,7 +164,6 @@
         <item quantity="one">%delektitaj</item>
         <item quantity="other">%delektita</item>
     </plurals>
-
     <string name="self">Mi</string>
     <string name="draft">Malneto</string>
     <string name="image">Bildo</string>
@@ -144,7 +177,7 @@
     <string name="voice_message">Voĉmesaĝo</string>
     <string name="forwarded">Plusendita</string>
     <string name="forwarded_message">Plusendita mesaĝo</string>
-    <!-- %1$s will be replaced by the name or the e-mail address of the person who forwards the message -->
+    <!-- %1$s will be replaced by the name of the person who forwarded the message -->
     <string name="forwarded_by">Plusendita de %1$s</string>
     <string name="video">Filmo</string>
     <string name="documents">Dokumentoj</string>
@@ -189,10 +222,7 @@
     <string name="menu_new_contact">Nova kontakto</string>
     <string name="menu_new_chat">Nova babilo</string>
     <string name="menu_new_group">Nova grupo</string>
-    <!-- consider keeping the term "broadcast" as in WhatsApp or Telegram -->
-    <string name="broadcast_list">Elsenda Listo</string>
-    <string name="broadcast_lists">Elsendaj Listoj</string>
-    <string name="new_broadcast_list">Nova Elsenda Listo</string>
+    <!-- deprecated -->
     <string name="add_recipients">Aldoni Ricevantojn</string>
     <string name="menu_send">Sendi</string>
     <string name="menu_toggle_keyboard">Baskuligi emoĝian klavaron</string>
@@ -206,7 +236,6 @@
     <string name="menu_delete_chat">Forigi babilon</string>
     <!-- Command to delete all messages in a chat. The chat itself will not be deleted but will be empty afterwards, so make sure to be different from "Delete Chat" here. "Clear" is a verb here, "Empty Chat" would also be fine (eg. in German "Chat leeren") -->
     <string name="clear_chat">Viŝi la babilejon</string>
-    <string name="menu_delete_messages">Forigi mesaĝojn</string>
     <string name="delete_contact">Forviŝi Kontakton</string>
     <string name="menu_delete_location">Ĉu forigi tiun ĉi lokon?</string>
     <string name="menu_message_details">Mesaĝ-detaloj</string>
@@ -266,7 +295,7 @@
     <!-- Opposite of "Pin chat", removing the sticky-state from a chat. -->
     <string name="unpin">Depingli</string>
     <string name="mute_for_one_hour">Silentigi por 1 horo</string>
-    <string name="mute_for_two_hours">Silentigi por 2 horoj</string>
+    <string name="mute_for_eight_hours">Silentigi por 8 horoj</string>
     <string name="mute_for_one_day">Silentigi por 1 tago</string>
     <string name="mute_for_seven_days">Silentigi por 7 tagoj</string>
     <string name="mute_forever">Silentigi por ĉiam</string>
@@ -279,27 +308,13 @@
 
     <string name="file_saved_to">Dosiero konservita kiel \"%1$s\".</string>
 
-    <!-- get confirmations -->
-    <string name="ask_leave_group">Ĉu vi estas certa, ke vi volas forlasi tiun ĉi grupon?</string>
-    <plurals name="ask_delete_chat">
-        <item quantity="one">Ĉu forigi %d babilon? Ĝi ne plu troveblos en la babilaro, tamen ĝiaj mesaĝoj plurestos en la servilo.</item>
-        <item quantity="other">Ĉu forigi %d babilojn? Ili ne plu troveblos en la babilaro, tamen iliaj mesaĝoj plurestos en la servilo.</item>
-    </plurals>
-    <string name="ask_delete_named_chat">Ĉu vi certas, ke vi deziras forigi \"%1$s\"?</string>
-    <plurals name="ask_delete_messages">
-        <item quantity="one">Ĉu forigi %d mesaĝon kaj ĉi tie kaj en la servilo?</item>
-        <item quantity="other">Ĉu forigi %d mesaĝojn kaj ĉi tie kaj en la servilo?</item>
-    </plurals>
     <string name="ask_forward">Plusendi mesaĝojn al %1$s?</string>
-    <string name="cannot_delete_contacts_in_use">Ne eblas forigi kontaktojn kun aktualaj babiloj.</string>
     <string name="ask_start_chat_with">Babili kun %1$s?</string>
     <!-- %1$s is replaced by a comma-separated list of names -->
     <string name="ask_remove_members">Forigi %1$sel la grupo?</string>
     <!-- contact list -->
     <string name="contacts_title">Kontaktoj</string>
-    <string name="contacts_enter_name_or_email">Enigi nomon aŭ retadreson</string>
     <string name="contacts_type_email_above">Enigu retadreson supren</string>
-    <string name="contacts_empty_hint">Neniu kontakto.</string>
 
 
     <!-- chatlist and chat view -->
@@ -327,10 +342,13 @@
     <string name="chat_archived_label">Enarĥivigitaj</string>
     <string name="chat_no_messages">Neniu mesaĝo.</string>
     <string name="chat_self_talk_subtitle">Mesaĝoj senditaj al mi mem</string>
+    <!-- Action to add a message to "Saved Messages". The longer form (instead of "Save" only) is needed esp. on desktop to make clear this is not about saving a file to disk -->
+    <string name="save_message">Konservi</string>
     <string name="saved_messages">Konservitaj mesaĝoj</string>
     <string name="retry_send">Reprovi sendi mesaĝon</string>
     <string name="show_location_traces">Montri spurojn</string>
     <string name="add_poi">Sendi punkton de intereso</string>
+
 
     <!-- search -->
     <string name="search">Serĉi</string>
@@ -353,9 +371,8 @@
     <string name="tab_map">Mapo</string>
     <string name="media_preview">Aŭdvida antaŭrigardo</string>
     <string name="send_message">Sendi mesaĝon</string>
+
     <string name="login_title">Ensaluti</string>
-    <!-- for classic email, we use the classical term "Account" -->
-    <string name="login_header">Ensaluti al via servilo</string>
     <string name="login_inbox">Ricevujo</string>
     <string name="login_imap_login">IMAP salutnomo</string>
     <string name="login_imap_server">IMAP servilo</string>
@@ -367,8 +384,6 @@
     <string name="login_smtp_server">SMTP servilo</string>
     <string name="login_smtp_port">SMTP pordo</string>
     <string name="login_smtp_security">SMTP sekureco</string>
-    <string name="login_auth_method">Metodo de rajtigado</string>
-    <string name="login_info_oauth2_title">Ĉu daŭri kun faciligitaj agordoj?</string>
     <string name="login_certificate_checks">Atestilaj kontroloj</string>
     <string name="login_error_mail">Bonvolu enigi validan retadreson</string>
     <string name="login_error_server">Bonvolu enigi validan servilon / IP adreson</string>
@@ -387,8 +402,6 @@
 
     <string name="pref_profile_photo">Profilbildo</string>
     <string name="pref_blocked_contacts">Blokitaj kontaktoj</string>
-    <!-- for classic email, we use the classical term "Account" -->
-    <string name="pref_password_and_account_settings">Pasvorto kaj konto</string>
     <string name="pref_your_name">Via nomo</string>
     <string name="pref_enter_sends">La Eniga klavo kaŭzas sendon</string>
     <string name="pref_enter_sends_explain">Premado de la Eniga klavo sendos mesaĝojn</string>
@@ -417,9 +430,6 @@
     <string name="pref_read_receipts">Legokonfirmoj</string>
     <string name="pref_read_receipts_explain">Se legokonfirmoj ne estas ŝaltitaj, vi ne vidos aliulajn legokonfirmojn.</string>
     <string name="pref_manage_keys">Administri ŝlosilojn</string>
-    <string name="pref_use_system_emoji">Uzi sisteman emoĝiaron</string>
-    <string name="pref_use_system_emoji_explain">Malebligi emoĝiaron de Delta Chat</string>
-    <string name="pref_app_access">Aliro al aplikaĵo</string>
     <string name="pref_chats">Interparoloj</string>
     <string name="pref_in_chat_sounds">Sonoj dum interparolado</string>
     <string name="pref_view_log">Vidi protokolon</string>
@@ -431,19 +441,11 @@
     <string name="pref_backup_explain">Savkopii babilojn al ekstera memorilo</string>
     <string name="pref_backup_export_start_button">Komenci savkopiadon</string>
     <string name="pref_backup_written_to_x">Savkopio sukcese konservita al \"%1$s\".</string>
-    <string name="pref_managekeys_menu_title">Administri ŝlosilojn</string>
-    <string name="pref_managekeys_export_secret_keys">Eksporti sekretajn ŝlosilojn</string>
-    <string name="pref_managekeys_export_explain">Ĉu eksporti sekretajn ŝlosilojn al \"%1$s\"?</string>
-    <string name="pref_managekeys_import_secret_keys">Importi sekretajn ŝlosilojn</string>
     <!-- No need to translate "Wallpaper" literally. Chose what is common in your language for a "Wallpaper" or a "Background". Avoid adding the term "image" here, as the "Wallpaper" may also be just a single color. -->
     <string name="pref_background">Fono</string>
     <string name="pref_background_btn_default">Uzi defaŭltan bildon</string>
     <string name="pref_background_btn_gallery">Elekti el galerio</string>
-    <string name="pref_imap_folder_handling">IMAP dosieruja traktado</string>
-    <string name="pref_watch_sent_folder">Kontroli senditujon</string>
-    <string name="pref_send_copy_to_self">Sendi kopion al mi mem</string>
     <string name="pref_show_emails_all">Ĉiuj</string>
-    <string name="autocrypt_prefer_e2ee">Preferi tutvojan ĉifradon</string>
     <!-- notifications  -->
     <string name="notify_reply_button">Respondi</string>
     <string name="notify_new_message">Nova mesaĝo</string>

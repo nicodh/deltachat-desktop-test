@@ -27,6 +27,7 @@ type DialogContextValue = {
   openDialog: OpenDialog
   closeDialog: CloseDialog
   closeAllDialogs: CloseAllDialogs
+  openDialogIds: string[] // IDs of currently opened dialogs
 }
 
 const initialValues: DialogContextValue = {
@@ -34,13 +35,16 @@ const initialValues: DialogContextValue = {
   openDialog: _ => '',
   closeDialog: _ => {},
   closeAllDialogs: () => {},
+  openDialogIds: [],
 }
 
 export const DialogContext =
   React.createContext<DialogContextValue>(initialValues)
 
 export const DialogContextProvider = ({ children }: PropsWithChildren<{}>) => {
-  const [dialogs, setDialogs] = useState<{ [id: DialogId]: JSX.Element }>({})
+  const [dialogs, setDialogs] = useState<{
+    [id: DialogId]: React.ReactElement
+  }>({})
 
   const closeDialog = useCallback((id: DialogId) => {
     setDialogs(({ [id]: _, ...rest }) => rest)
@@ -54,15 +58,23 @@ export const DialogContextProvider = ({ children }: PropsWithChildren<{}>) => {
     (dialogElement, additionalProps) => {
       const newDialogId = generateRandomUUID()
 
+      // Extract custom onClose handler if provided
+      const customOnClose = additionalProps?.onClose
+
       const newDialog = createElement(
         // From this point on we are only interested in the `DialogProps`
         dialogElement as DialogElementConstructor<DialogProps>,
         {
           key: `dialog-${newDialogId}`,
-          onClose: () => {
+          ...additionalProps,
+          onClose: (result?: any) => {
+            // Call custom onClose handler first if provided
+            if (customOnClose) {
+              customOnClose(result)
+            }
+            // Always close the dialog
             closeDialog(newDialogId)
           },
-          ...additionalProps,
         }
       )
 
@@ -82,12 +94,19 @@ export const DialogContextProvider = ({ children }: PropsWithChildren<{}>) => {
     return Object.keys(dialogs).length > 0
   }, [dialogs])
 
+  const openDialogIds = useMemo(() => {
+    return Object.keys(dialogs)
+  }, [dialogs])
+
   const value = {
     hasOpenDialogs,
     openDialog,
     closeDialog,
     closeAllDialogs,
+    openDialogIds,
   }
+
+  window.__closeAllDialogs = closeAllDialogs
 
   return (
     <DialogContext.Provider value={value}>

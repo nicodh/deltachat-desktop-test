@@ -2,16 +2,15 @@
   "private": "true",
   "name": "deltachat-desktop",
   "type": "module",
-  "version": "1.51.0",
+  "version": "2.33.0",
   "scripts": {
     "preinstall": "node ./bin/check-nodejs-version.js",
-    "check": "pnpm check:types && pnpm check:lint && pnpm check:format && pnpm check:target-versions && pnpm check:log-conventions",
+    "check": "pnpm check:types && pnpm check:lint && pnpm check:format && pnpm check:target-versions",
     "check:types": "pnpm -r --no-bail check:types",
-    "check:lint": "eslint . --ext .js,.ts,.tsx",
+    "check:lint": "eslint . --cache",
     "check:format": "prettier --check \"**/*.scss\" \"packages/**/*.{js,ts,tsx,json}\" \"**/*.md\"",
-    "check:log-conventions": "node ./bin/log-conventions",
     "fix": "pnpm fix:lint && pnpm fix:format",
-    "fix:lint": "eslint . --ext .js,.ts,.tsx --fix || true",
+    "fix:lint": "eslint . --cache --fix || true",
     "fix:format": "prettier --write \"**/*.scss\" \"packages/**/*.{js,ts,tsx,json}\" \"**/*.md\"",
     "dev": "pnpm dev:electron",
     "start:electron": "pnpm --filter=@deltachat-desktop/target-electron start",
@@ -23,19 +22,20 @@
     "build:browser": "pnpm --filter=@deltachat-desktop/target-browser build",
     "start:webserver": "pnpm --filter=@deltachat-desktop/target-browser start:server",
     "dev:tauri": "pnpm --filter=@deltachat-desktop/target-tauri start",
-    "translations:pull": "tx pull -s -f && tx pull -f -a",
+    "translations:pull": "tx pull -s -f -t && tx pull -f -a",
     "translations:convert": "node ./bin/build-shared-convert-translations.mjs ./_locales",
     "translations:update": "pnpm translations:pull && pnpm translations:convert && ./bin/find_complete_translations.sh",
+    "prepare-release": "./bin/prepare-release.sh",
     "update:target-versions": "node ./bin/update_desktop_version.js && prettier --write --log-level=silent \"packages/target**/package.json\"",
     "check:target-versions": "node ./bin/update_desktop_version.js --check",
     "test": "pnpm -r --no-bail test",
     "test-and-check": "pnpm test && pnpm check",
-    "e2e": "pnpm build:browser && pnpm --filter=@deltachat-desktop/e2e-tests e2e",
+    "e2e": "pnpm build:browser && pnpm --filter=e2e-tests e2e",
     "reset:node_modules": "rm -rf node_modules && rm -rf packages/*/node_modules || true && pnpm i"
   },
   "engineStrict": true,
   "engines": {
-    "node": "^20",
+    "node": "^22",
     "pnpm": ">=9.6.0"
   },
   "pnpm": {
@@ -50,22 +50,35 @@
         "ia32",
         "arm64"
       ]
+    },
+    "onlyBuiltDependencies": [
+      "@parcel/watcher",
+      "electron",
+      "esbuild"
+    ],
+    "overrides": {
+      "stylus": "npm:empty-npm-package@1.0.0",
+      "esbuild-plugin-inline-worker>esbuild": "^0.25.0"
     }
   },
   "devDependencies": {
+    "@eslint/compat": "^1.4.1",
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.38.0",
     "@types/ignore-walk": "^4.0.3",
-    "@typescript-eslint/eslint-plugin": "^7.8.0",
-    "@typescript-eslint/parser": "^7.8.0",
-    "chokidar": "^3.6.0",
-    "dotenv": "^16.4.5",
-    "eslint": "^8.57.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-prettier": "^5.2.1",
-    "eslint-plugin-react-hooks": "^4.6.2",
-    "ignore-walk": "^7.0.0",
-    "prettier": "3.1.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.2",
+    "@typescript-eslint/parser": "^8.46.2",
+    "chokidar": "^4.0.3",
+    "eslint": "^9.38.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "git-cliff": "^2.7.0",
+    "globals": "^16.3.0",
+    "ignore-walk": "^8.0.0",
+    "prettier": "^3.6.2",
     "typescript": "catalog:",
+    "typescript-eslint": "^8.46.2",
     "xml-js": "^1.6.11",
-    "yaml": "^2.4.5"
+    "yaml": "^2.8.1"
   }
 }

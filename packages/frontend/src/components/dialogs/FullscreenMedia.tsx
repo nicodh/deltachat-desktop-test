@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
-import debounce from 'debounce'
+import { throttle } from '@deltachat-desktop/shared/util'
 
 import Dialog from '../Dialog'
 import { IconButton } from '../Icon'
@@ -13,7 +13,7 @@ import { useInitEffect } from '../helpers/hooks'
 import { BackendRemote, onDCEvent, Type } from '../../backend-com'
 import { selectedAccountId } from '../../ScreenController'
 import useTranslationFunction from '../../hooks/useTranslationFunction'
-import useContextMenu from '../../hooks/useContextMenu'
+import { useContextMenuWithActiveState } from '../ContextMenu'
 import useMessage from '../../hooks/chat/useMessage'
 
 import type { DialogProps } from '../../contexts/DialogContext'
@@ -22,9 +22,9 @@ const log = getLogger('renderer/fullscreen_media')
 
 /** wraps a callback so that `event.preventDefault()` is called before it */
 export function preventDefault<EventType extends React.SyntheticEvent | Event>(
-  callback: Function
+  callback: () => void
 ) {
-  const wrapper = (cb: Function, ev: EventType) => {
+  const wrapper = (cb: () => void, ev: EventType) => {
     ev.preventDefault()
     cb()
   }
@@ -49,9 +49,9 @@ export default function FullscreenMedia(props: Props & DialogProps) {
   const { onClose } = props
 
   const [msg, setMsg] = useState(props.msg)
-  const resetImageZoom = useRef<(() => void) | null>(
-    null
-  ) as React.MutableRefObject<(() => void) | null>
+  const resetImageZoom = useRef<(() => void) | null>(null) as React.RefObject<
+    (() => void) | null
+  >
   const previousNextMessageId = useRef<[number | null, number | null]>([
     null,
     null,
@@ -83,14 +83,14 @@ export default function FullscreenMedia(props: Props & DialogProps) {
       }
     }
     update()
-    const debouncedUpdate = debounce(update, 400)
+    const throttledUpdate = throttle(update, 400)
     const listeners = [
-      onDCEvent(accountId, 'MsgsChanged', debouncedUpdate),
-      onDCEvent(accountId, 'IncomingMsgBunch', debouncedUpdate),
-      onDCEvent(accountId, 'MsgDeleted', debouncedUpdate),
+      onDCEvent(accountId, 'MsgsChanged', throttledUpdate),
+      onDCEvent(accountId, 'IncomingMsgBunch', throttledUpdate),
+      onDCEvent(accountId, 'MsgDeleted', throttledUpdate),
     ]
     return () => {
-      listeners.every(cleanup => cleanup())
+      listeners.forEach(cleanup => cleanup())
     }
   }, [props.msg, props.neighboringMedia, accountId])
 
@@ -101,7 +101,7 @@ export default function FullscreenMedia(props: Props & DialogProps) {
     throw new Error('file attribute not set')
   }
 
-  const openMenu = useContextMenu([
+  const { isContextMenuActive, onContextMenu } = useContextMenuWithActiveState([
     {
       label: tx('menu_copy_image_to_clipboard'),
       action: () => {
@@ -109,7 +109,7 @@ export default function FullscreenMedia(props: Props & DialogProps) {
       },
     },
     {
-      label: tx('save_as'),
+      label: tx('menu_export_attachment'),
       action: onDownload.bind(null, msg),
     },
     {
@@ -119,6 +119,7 @@ export default function FullscreenMedia(props: Props & DialogProps) {
           accountId,
           msgId: msg.id,
           msgChatId: msg.chatId,
+          focus: true,
           scrollIntoViewArg: { block: 'center' },
         })
         onClose()
@@ -129,18 +130,37 @@ export default function FullscreenMedia(props: Props & DialogProps) {
   let elm = null
 
   if (isImage(fileMime)) {
+    const imageHeight =
+      msg.dimensionsHeight < 300 ? 2 * msg.dimensionsHeight : ''
     elm = (
       <div className='image-container'>
-        <TransformWrapper initialScale={1}>
+        <TransformWrapper
+          initialScale={1}
+          wheel={{
+            wheelDisabled: true,
+          }}
+          panning={{
+            wheelPanning: true,
+          }}
+        >
           {utils => {
             resetImageZoom.current = () => {
               utils.resetTransform()
             }
             return (
-              <TransformComponent>
+              <TransformComponent
+                wrapperStyle={{
+                  maxWidth: '100%',
+                  maxHeight: '100vh',
+                }}
+                contentStyle={{
+                  padding: '0',
+                }}
+              >
                 <div
                   className='image-context-menu-container'
-                  onContextMenu={openMenu}
+                  onContextMenu={onContextMenu}
+                  aria-haspopup='menu'
                   tabIndex={0}
                 >
                   <img
@@ -150,6 +170,7 @@ export default function FullscreenMedia(props: Props & DialogProps) {
                     // See https://github.com/deltachat/deltachat-desktop/issues/4320
                     style={{ display: 'block' }}
                     src={runtime.transformBlobURL(file)}
+                    height={imageHeight}
                   />
                 </div>
               </TransformComponent>
@@ -246,6 +267,12 @@ export default function FullscreenMedia(props: Props & DialogProps) {
       if (ev.repeat) {
         return
       }
+      if (ev.code === 'Escape' && isContextMenuActive) {
+        // Only close the context menu, instead of closing both
+        // the context menu and the whole FullscreenMedia dialog.
+        ev.preventDefault()
+        return
+      }
       const left = ev.code === 'ArrowLeft'
       const right = ev.code === 'ArrowRight'
       if (!left && !right) {
@@ -261,7 +288,7 @@ export default function FullscreenMedia(props: Props & DialogProps) {
     }
     document.addEventListener('keydown', listener)
     return () => document.removeEventListener('keydown', listener)
-  }, [previousImage, nextImage])
+  }, [previousImage, nextImage, isContextMenuActive])
 
   if (!msg || !msg.file) return elm
 
@@ -292,6 +319,7 @@ export default function FullscreenMedia(props: Props & DialogProps) {
       {showPreviousNextMessageButtons.previous && (
         <div className='media-previous-button'>
           <IconButton
+            // eslint-disable-next-line react-hooks/refs
             onClick={preventDefault(previousImage)}
             icon='chevron-left'
             coloring='fullscreenControls'
@@ -303,6 +331,7 @@ export default function FullscreenMedia(props: Props & DialogProps) {
       {showPreviousNextMessageButtons.next && (
         <div className='media-next-button'>
           <IconButton
+            // eslint-disable-next-line react-hooks/refs
             onClick={preventDefault(nextImage)}
             icon='chevron-right'
             coloring='fullscreenControls'

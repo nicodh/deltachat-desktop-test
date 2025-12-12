@@ -10,6 +10,8 @@ import ConfirmationDialog from '../dialogs/ConfirmationDialog'
 import MessageDetail from '../dialogs/MessageDetail/MessageDetail'
 
 import type { OpenDialog } from '../../contexts/DialogContext'
+import { C, T } from '@deltachat/jsonrpc-client'
+import ConfirmDeleteMessageDialog from '../dialogs/ConfirmDeleteMessage'
 
 const log = getLogger('render/msgFunctions')
 
@@ -28,12 +30,13 @@ export function onDownload(msg: Type.Message) {
   }
 }
 
-export function openAttachmentInShell(msg: Type.Message) {
-  if (!msg.file) {
+export async function openAttachmentInShell(msg: Type.Message) {
+  if (!msg.file || !msg.fileName) {
     log.error('message has no file to open:', msg)
     throw new Error('message has no file to open')
   }
-  if (!runtime.openPath(msg.file)) {
+  const tmpFile = await runtime.copyFileToInternalTmpDir(msg.fileName, msg.file)
+  if (!runtime.openPath(tmpFile)) {
     log.info(
       "file couldn't be opened, try saving it in a different place and try to open it from there"
     )
@@ -69,7 +72,7 @@ export async function confirmForwardMessage(
   openDialog: OpenDialog,
   accountId: number,
   message: Type.Message,
-  chat: Type.FullChat
+  chat: Pick<Type.BasicChat, 'name' | 'id'>
 ) {
   const tx = window.static_translate
   const yes = await confirmDialog(
@@ -86,15 +89,13 @@ export async function confirmForwardMessage(
 export function confirmDeleteMessage(
   openDialog: OpenDialog,
   accountId: number,
-  msg: Type.Message
+  msg: Type.Message,
+  chat: Type.FullChat
 ) {
-  const tx = window.static_translate
-
-  openDialog(ConfirmationDialog, {
-    message: tx('ask_delete_message'),
-    confirmLabel: tx('delete'),
-    cb: (yes: boolean) =>
-      yes && BackendRemote.rpc.deleteMessages(accountId, [msg.id]),
+  openDialog(ConfirmDeleteMessageDialog, {
+    accountId,
+    msg,
+    chat,
   })
 }
 
@@ -102,11 +103,29 @@ export function openMessageInfo(openDialog: OpenDialog, message: Type.Message) {
   openDialog(MessageDetail, { id: message.id })
 }
 
-export function setQuoteInDraft(messageId: number) {
+/**
+ * @param messageOrMessageId prefer to pass the full message
+ * insitead of the message ID, for better performance.
+ */
+export function setQuoteInDraft(
+  messageOrMessageId: Parameters<
+    Exclude<typeof window.__setQuoteInDraft, null>
+  >[0]
+) {
   if (window.__setQuoteInDraft) {
-    window.__setQuoteInDraft(messageId)
+    window.__setQuoteInDraft(messageOrMessageId)
   } else {
     throw new Error('window.__setQuoteInDraft undefined')
+  }
+}
+/**
+ * @throws if the composer is not rendered.
+ */
+export function enterEditMessageMode(messageToEdit: T.Message) {
+  if (window.__enterEditMessageMode) {
+    window.__enterEditMessageMode(messageToEdit)
+  } else {
+    throw new Error('window.__enterEditMessageMode undefined')
   }
 }
 
@@ -124,12 +143,14 @@ export async function openMessageHTML(messageId: number) {
     receivedTimestamp,
   } = await BackendRemote.rpc.getMessage(accountId, messageId)
   const receiveTime = moment(receivedTimestamp * 1000).format('LLLL')
-  const { isContactRequest, isProtectionBroken } =
-    await BackendRemote.rpc.getBasicChatInfo(accountId, chatId)
-  runtime.openMessageHTML(
-    `${accountId}.${messageId}`,
+  const { isContactRequest } = await BackendRemote.rpc.getBasicChatInfo(
     accountId,
-    isContactRequest || isProtectionBroken,
+    chatId
+  )
+  runtime.openMessageHTML(
+    accountId,
+    messageId,
+    isContactRequest,
     subject,
     displayName,
     receiveTime,
@@ -141,7 +162,25 @@ export async function downloadFullMessage(messageId: number) {
   await BackendRemote.rpc.downloadFullMessage(selectedAccountId(), messageId)
 }
 
-export async function openWebxdc(message: Type.Message) {
+export async function openWebxdc(
+  message: Type.Message,
+  webxdcInfo?: T.WebxdcMessageInfo
+) {
   const accountId = selectedAccountId()
-  internalOpenWebxdc(accountId, message)
+  internalOpenWebxdc(accountId, message, webxdcInfo)
+}
+
+export function isMessageEditable(
+  message: T.Message,
+  chat: T.FullChat
+): boolean {
+  return (
+    message.fromId === C.DC_CONTACT_ID_SELF &&
+    chat.isEncrypted &&
+    message.text !== '' &&
+    chat.canSend &&
+    !message.isInfo &&
+    !message.hasHtml &&
+    message.viewType !== 'Call'
+  )
 }

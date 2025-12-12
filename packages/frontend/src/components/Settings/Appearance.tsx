@@ -175,6 +175,7 @@ function BackgroundSelector({
         `position:absolute;top:${y}px;left:${eventPos.x}px;`
       )
       if (desktopSettings?.chatViewBgImg?.startsWith('color: ')) {
+        /* eslint react-hooks/immutability: "warn" */
         colorInput.value = desktopSettings?.chatViewBgImg.slice(7) || ''
       }
       setTimeout(() => colorInput.click(), 0)
@@ -239,7 +240,7 @@ function BackgroundSelector({
         openColorInput(ev)
         break
       default:
-        /* ignore-console-log */
+        // eslint-disable-next-line no-console
         console.error("this shouldn't happen")
     }
   }
@@ -255,6 +256,7 @@ function BackgroundSelector({
         />
         <div className={'background-options'}>
           <button
+            type='button'
             onClick={onButton.bind(null, SetBackgroundAction.default)}
             style={{
               backgroundImage: 'var(--chatViewBgImgPath)',
@@ -264,23 +266,30 @@ function BackgroundSelector({
             aria-label={tx('pref_background_default')}
           />
           <button
+            type='button'
             onClick={onButton.bind(null, SetBackgroundAction.defaultColor)}
             style={{ backgroundColor: 'var(--chatViewBg)' }}
             aria-label={tx('pref_background_default_color')}
           />
           <button
+            type='button'
             onClick={onButton.bind(null, SetBackgroundAction.customImage)}
             className='custom-image'
             aria-label={tx('pref_background_custom_image')}
           >
-            <Icon icon='image_outline' size={36} coloring='iconColorCSSVar' />
+            <Icon
+              icon='image_outline'
+              size={36}
+              coloring='appearanceSelector'
+            />
           </button>
           <button
+            type='button'
             onClick={onButton.bind(null, SetBackgroundAction.customColor)}
             className='custom-color'
             aria-label={tx('pref_background_custom_color')}
           >
-            <Icon icon='palette' size={36} coloring='iconColorCSSVar' />
+            <Icon icon='palette' size={36} coloring='appearanceSelector' />
           </button>
         </div>
       </div>
@@ -296,6 +305,7 @@ function BackgroundSelector({
           'petito-moreno.webp',
         ].map(elem => (
           <button
+            type='button'
             onClick={onButton.bind(null, SetBackgroundAction.presetImage)}
             style={{
               backgroundImage: `url(./images/backgrounds/thumb/${elem})`,

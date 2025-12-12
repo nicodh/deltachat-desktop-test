@@ -4,8 +4,9 @@ import ImageSelector from '../../ImageSelector'
 import ImageCropper from '../../ImageCropper'
 
 import { LastUsedSlot } from '../../../utils/lastUsedPaths'
-import { avatarInitial } from '../../Avatar'
+import { avatarInitial } from '@deltachat-desktop/shared/avatarInitial'
 import useDialog from '../../../hooks/dialog/useDialog'
+import { copyToBlobDir } from '../../../utils/copyToBlobDir'
 
 type Props = {
   addr?: string
@@ -33,12 +34,12 @@ export default function ProfileImageSelector({
       filePath={profilePicture}
       initials={initials}
       lastUsedSlot={LastUsedSlot.ProfileImage}
-      onChange={filepath => {
+      onChange={async filepath => {
         if (!filepath) {
           setProfilePicture(null)
         } else {
           openDialog(ImageCropper, {
-            filepath,
+            filepath: await copyToBlobDir(filepath),
             shape: 'circle',
             onResult: setProfilePicture,
             onCancel: () => {},

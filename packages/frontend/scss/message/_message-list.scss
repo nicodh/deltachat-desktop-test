@@ -1,10 +1,12 @@
+@use 'sass:map';
+@use '../variables';
+
 @use 'sass:math';
 
 .message-list-and-composer {
-  width: 70%;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex-grow: 1;
 
   // If you want to update this, don't forget to update
   // the `.background-preview` element as well.
@@ -27,11 +29,11 @@
     bottom: calc(-100% + #{$height} + #{$marginBottom});
     height: $height;
     width: $width;
-    z-index: $z-index-new-local-scope; // needed for .jump-down-button>.counter
+    z-index: variables.$z-index-new-local-scope; // needed for .jump-down-button>.counter
 
     .counter {
       position: relative;
-      z-index: map-get($z-index, jump-down-button-scope-counter);
+      z-index: map.get(variables.$z-index, jump-down-button-scope-counter);
       width: 25px;
       height: 25px;
       margin: 0 auto;
@@ -105,7 +107,7 @@
     }
   }
 
-  ul {
+  ol {
     list-style: none;
     min-width: 200px;
     margin: 10px 0px;

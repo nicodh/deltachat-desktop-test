@@ -1,7 +1,7 @@
 import { useCallback, useContext, useEffect } from 'react'
 
 import useChat from './useChat'
-import useHasChanged from '../useHasChanged'
+import { useHasChanged } from '../useHasChanged'
 import { BackendRemote } from '../../backend-com'
 import { getLastChatId } from '../../backend/chat'
 import { ScreenContext } from '../../contexts/ScreenContext'
@@ -14,9 +14,9 @@ export default function useSelectLastChat(accountId?: number) {
   const { smallScreenMode } = useContext(ScreenContext)
   const hasAccountIdChanged = useHasChanged(accountId)
   const hasSmallScreenModeChanged = useHasChanged(smallScreenMode)
-  const { selectChat, chatId, alternativeView } = useChat()
+  const { selectChat, chatId } = useChat()
 
-  const smallScreenModeChatListVisible = !(chatId || alternativeView)
+  const smallScreenModeChatListVisible = !chatId
 
   const selectLastChat = useCallback(async () => {
     if (!accountId) {

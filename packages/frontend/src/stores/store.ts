@@ -6,7 +6,11 @@ export function useStore<T extends Store<any>>(
 ): [T extends Store<infer S> ? S : any, T['dispatch']] {
   const [state, setState] = useState(StoreInstance.getState())
 
-  useEffect(() => StoreInstance.subscribe(setState), [StoreInstance])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setState(StoreInstance.getState())
+    return StoreInstance.subscribe(setState)
+  }, [StoreInstance])
   // TODO: better return an object to allow destructuring
   return [state, StoreInstance.dispatch.bind(StoreInstance)]
 }
@@ -82,7 +86,7 @@ export class Store<S> {
 
   setState(
     stateReducer: (currentState: S) => S | undefined,
-    description: String
+    description: string
   ) {
     const modifiedState = stateReducer(this.state)
     if (modifiedState === undefined) return

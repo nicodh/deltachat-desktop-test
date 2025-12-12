@@ -1,3 +1,5 @@
+// When changing these, consider also updating the avatar SVG
+// in `video-calls.ts`.
 .avatar {
   --local-avatar-size: 48px;
   --local-avatar-vertical-margin: 8px;
@@ -51,12 +53,31 @@
   }
 
   div.content {
-    background-color: #505050;
+    --local-avatar-color: #505050;
+    background-color: var(--local-avatar-color);
+
     line-height: var(--local-avatar-size);
     object-fit: cover;
     color: var(--avatarLabelColor);
     text-align: center;
     font-size: var(--local-avatar-font-size);
+
+    @supports (
+      // text-wrap was introduced in 2023 slightly after color-mix,
+      // since we can't test for color-mix support directly we use this instead.
+      text-wrap: wrap
+    ) {
+      // make avatars look slightly 3D
+      background: linear-gradient(
+        var(--avatarGradientAngle),
+        var(--local-avatar-color),
+        color-mix(
+          in srgb,
+          var(--local-avatar-color) var(--avatarGradientMixFactor),
+          white
+        )
+      );
+    }
 
     .avatar-qr-code-img {
       width: 22px;
@@ -76,9 +97,17 @@
   --local-avatar-vertical-margin: 0;
 }
 
+// contact list, search results etc.
 .avatar.large {
   --local-avatar-size: 64px;
   --local-avatar-font-size: 39px;
+}
+
+// for profile view
+.avatar.very-large {
+  --local-avatar-size: 128px;
+  --local-avatar-font-size: 78px;
+  margin: auto;
 }
 
 .avatar.no-search-results {

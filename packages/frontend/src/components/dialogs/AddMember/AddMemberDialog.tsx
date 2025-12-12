@@ -3,9 +3,8 @@ import { AddMemberInnerDialog } from './AddMemberInnerDialog'
 import { useLazyLoadedContacts } from '../../contact/ContactList'
 import Dialog from '../../Dialog'
 import Icon from '../../Icon'
-import type { T } from '@deltachat/jsonrpc-client'
+import { C, type T } from '@deltachat/jsonrpc-client'
 import type { DialogProps } from '../../../contexts/DialogContext'
-import { InlineVerifiedIcon } from '../../VerifiedIcon'
 import { Avatar } from '../../Avatar'
 import styles from './styles.module.scss'
 
@@ -14,29 +13,34 @@ export function AddMemberDialog({
   onOk,
   groupMembers,
   listFlags,
-  isBroadcast = false,
-  isVerificationRequired = false,
+  titleMembersOrRecipients,
 }: {
   onOk: (members: number[]) => void
   groupMembers: number[]
   listFlags: number
-  isBroadcast?: boolean
-  isVerificationRequired?: boolean
+  titleMembersOrRecipients: Parameters<
+    typeof AddMemberInnerDialog
+  >[0]['titleMembersOrRecipients']
 } & DialogProps) {
   const [queryStr, setQueryStr] = useState('')
   const {
     contactIds,
     contactCache,
+    isContactLoaded,
     loadContacts,
     queryStrIsValidEmail,
-    refresh: refreshContacts,
+    refreshContacts,
   } = useLazyLoadedContacts(listFlags, queryStr)
+
+  // compare bitwise if address flag is set
+  const allowAddManually = (listFlags & C.DC_GCL_ADDRESS) !== 0
+
   return (
     <Dialog
       canOutsideClickClose={false}
       fixed
       onClose={onClose}
-      data-testid='add-member-dialog'
+      dataTestid='add-member-dialog'
     >
       {AddMemberInnerDialog({
         onOk: addMembers => {
@@ -52,12 +56,13 @@ export function AddMemberDialog({
 
         contactIds,
         contactCache,
+        isContactLoaded,
         loadContacts,
         refreshContacts,
 
         groupMembers,
-        isBroadcast,
-        isVerificationRequired,
+        titleMembersOrRecipients,
+        allowAddManually,
       })}
     </Dialog>
   )
@@ -76,13 +81,17 @@ export const AddMemberChip = (props: {
           avatarPath={contact.profileImage}
           color={contact.color}
           small={true}
+          // Avatar is purely decorative here,
+          // and is redundant accessibility-wise,
+          // because we display the contact name below.
+          aria-hidden={true}
         />
       </div>
       <div className={styles.DisplayName}>
         <div>{contact.displayName}</div>
-        {contact.isVerified && <InlineVerifiedIcon />}
       </div>
       <button
+        type='button'
         className={styles.removeMember}
         onClick={() => onRemoveClick(contact)}
         aria-label='Remove'

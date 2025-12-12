@@ -1,11 +1,12 @@
-import React, { useRef, useEffect, useCallback } from 'react'
-import { join, parse } from 'path'
-import { Viewtype } from '@deltachat/jsonrpc-client/dist/generated/types'
+import React, { useRef, useEffect, useCallback, useEffectEvent } from 'react'
+import { join, parse, ParsedPath } from 'path'
+import { T } from '@deltachat/jsonrpc-client'
 
-import Composer, { useDraft } from '../composer/Composer'
+import Composer from '../composer/Composer'
+import { useDraft } from '../../hooks/chat/useDraft'
 import { getLogger } from '../../../../shared/logger'
 import MessageList from './MessageList'
-import ComposerMessageInput from '../composer/ComposerMessageInput'
+import type ComposerMessageInput from '../composer/ComposerMessageInput'
 import { DesktopSettingsType } from '../../../../shared/shared-types'
 import { runtime } from '@deltachat-desktop/runtime-interface'
 import { RecoverableCrashScreen } from '../screens/RecoverableCrashScreen'
@@ -14,10 +15,15 @@ import ConfirmSendingFiles from '../dialogs/ConfirmSendingFiles'
 import { ReactionsBarProvider } from '../ReactionsBar'
 import useDialog from '../../hooks/dialog/useDialog'
 import useMessage from '../../hooks/chat/useMessage'
-
-import type { T } from '@deltachat/jsonrpc-client'
+import { Viewtype } from '@deltachat/jsonrpc-client/dist/generated/types'
+import { useMessageList } from '../../stores/messagelist'
 
 const log = getLogger('renderer/MessageListAndComposer')
+
+type Props = {
+  chat: T.FullChat
+  accountId: number
+}
 
 export function getBackgroundImageStyle(
   settings: DesktopSettingsType
@@ -42,14 +48,30 @@ export function getBackgroundImageStyle(
     }
     if (bgImg.startsWith('img: ')) {
       const filePath = bgImg.slice(5)
-      style.backgroundImage =
-        runtime.getRuntimeInfo().target === 'browser'
-          ? `url("/${join('background/', filePath)}")`
-          : `url("file://${join(
-              runtime.getConfigPath(),
-              'background/',
-              filePath
-            )}")`
+      const target = runtime.getRuntimeInfo().target
+      switch (target) {
+        case 'electron': {
+          style.backgroundImage = `url("file://${join(
+            runtime.getConfigPath(),
+            'background/',
+            filePath
+          )}")`
+          break
+        }
+        case 'tauri': {
+          const base =
+            runtime.getRuntimeInfo()?.tauriSpecific?.scheme.chatBackgroundImage
+          style.backgroundImage = `url("${base}${filePath}")`
+          break
+        }
+        case 'browser': {
+          style.backgroundImage = `url("/${join('background/', filePath)}")`
+          break
+        }
+        default: {
+          const _: never = target
+        }
+      }
     } else if (bgImg.startsWith('color: ')) {
       style.backgroundColor = bgImg.slice(7)
       style.backgroundImage = 'none'
@@ -66,136 +88,118 @@ export function getBackgroundImageStyle(
   return style
 }
 
-type Props = {
-  chat: T.FullChat
-  accountId: number
+function isImage(file: ParsedPath) {
+  const imageExtensions = ['.jpg', '.jpeg', '.png']
+  return imageExtensions.includes(file.ext)
 }
 
 export default function MessageListAndComposer({ accountId, chat }: Props) {
-  const conversationRef = useRef(null)
+  const conversationRef = useRef<HTMLDivElement>(null)
   const refComposer = useRef(null)
 
   const { openDialog, hasOpenDialogs } = useDialog()
   const { sendMessage } = useMessage()
 
-  const messageInputRef = useRef<ComposerMessageInput>(null)
+  const regularMessageInputRef = useRef<ComposerMessageInput>(null)
+  const editMessageInputRef = useRef<ComposerMessageInput>(null)
+
+  const {
+    store: messageListStore,
+    state: messageListState,
+    fetchMoreBottom,
+    fetchMoreTop,
+  } = useMessageList(accountId, chat.id)
+
   const {
     draftState,
+    draftIsLoading,
     updateDraftText,
+    onSelectReplyToShortcut,
     removeQuote,
     addFileToDraft,
     removeFile,
-    clearDraft,
+    clearDraftState,
+    setDraftState,
   } = useDraft(
+    messageListState,
     accountId,
     chat.id,
     chat.isContactRequest,
-    chat.isProtectionBroken,
     chat.canSend,
-    messageInputRef
+    regularMessageInputRef
   )
 
-  const onDrop = async (e: React.DragEvent<any>) => {
+  const handleDrop = useEffectEvent(async (paths: string[]) => {
+    log.info('drag: handling drop: ', paths)
     if (chat === null) {
       log.warn('dropped something, but no chat is selected')
       return
     }
-
-    e.preventDefault()
-    e.stopPropagation()
-
-    const sanitizedFileList: File[] = []
-    {
-      const fileList: FileList =
-        /* (e.target as any).files */ e.dataTransfer.files
-      for (let i = 0; i < fileList.length; i++) {
-        const file = fileList[i]
-        if (runtime.isDroppedFileFromOutside(file)) {
-          sanitizedFileList.push(file)
-        } else {
+    const sanitized = paths
+      .filter(path => {
+        const val = runtime.isDroppedFileFromOutside(path)
+        if (!val) {
           log.warn(
-            'Prevented a file from being send again while dragging it out',
-            file.name
+            'Prevented a file from being sent again while dragging it out',
+            path
           )
         }
-      }
+        return val
+      })
+      // TODO `parse` is a polyfill, and doesn't properly work
+      // for Windows paths.
+      // Namely, `name` is the full path, except for file extension
+      // (unless the file has no extension, then the things are even worse).
+      .map(path => ({ parsed: parse(path), pathStr: path }))
+
+    // send single file
+    if (sanitized.length == 1) {
+      const file = sanitized[0]
+      const msgViewType: Viewtype = isImage(file.parsed) ? 'Image' : 'File'
+      await addFileToDraft(
+        file.pathStr,
+        file.parsed.name + file.parsed.ext,
+        msgViewType
+      )
     }
-
-    const fileCount = sanitizedFileList.length
-
-    if (fileCount === 0) {
-      return
-    }
-
-    function writeTempFileFromFile(file: File): Promise<string> {
-      if (file.size > 1e8 /* 100mb */) {
-        log.warn(
-          `dropped file is bigger than 100mb ${file.name} ${file.size} ${file.type}`
-        )
-      }
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = _ => {
-          if (reader.result === null) {
-            return reject(new Error('result empty'))
-          } else if (typeof reader.result !== 'string') {
-            return reject(new Error('wrong type'))
+    // send multiple files
+    else if (sanitized.length > 1 && !hasOpenDialogs) {
+      openDialog(ConfirmSendingFiles, {
+        sanitizedFileList: sanitized.map(path => ({
+          name: path.parsed.name,
+        })),
+        chatName: chat.name,
+        onClick: async (isConfirmed: boolean) => {
+          if (!isConfirmed) {
+            return
           }
-          const base64Content = reader.result.split(',')[1]
-          runtime
-            .writeTempFileFromBase64(file.name, base64Content)
-            .then(tempUrl => {
-              resolve(tempUrl)
+
+          for (const file of sanitized) {
+            const msgViewType: Viewtype = isImage(file.parsed)
+              ? 'Image'
+              : 'File'
+            sendMessage(accountId, chat.id, {
+              file: file.pathStr,
+              filename: file.parsed.name + file.parsed.ext,
+              viewtype: msgViewType,
             })
-            .catch(err => {
-              reject(err)
-            })
-        }
-        reader.onerror = err => {
-          reject(err)
-        }
-        reader.readAsDataURL(file)
+          }
+        },
       })
     }
+  })
 
-    if (fileCount === 1) {
-      const file = sanitizedFileList[0]
-      log.debug(`dropped image of type ${file.type}`)
-      const msgViewType: Viewtype = file.type.startsWith('image')
-        ? 'Image'
-        : 'File'
-
-      const path = await writeTempFileFromFile(sanitizedFileList[0])
-      await addFileToDraft(path, msgViewType)
-      await runtime.removeTempFile(path)
-      return
-    }
-
-    // This is a desktop specific "hack" to support sending multiple attachments at once.
-    openDialog(ConfirmSendingFiles, {
-      sanitizedFileList,
-      chatName: chat.name,
-      onClick: async (isConfirmed: boolean) => {
-        if (!isConfirmed) {
-          return
-        }
-
-        for (const file of sanitizedFileList) {
-          const path = await writeTempFileFromFile(file)
-          const msgViewType: Viewtype = file.type.startsWith('image')
-            ? 'Image'
-            : 'File'
-          sendMessage(accountId, chat.id, {
-            file: path,
-            viewtype: msgViewType,
-          }).then(() => {
-            // start sending other files, don't wait until last file is sent
-            runtime.removeTempFile(path)
-          })
-        }
-      },
+  useEffect(() => {
+    log.debug('drag: register')
+    runtime.setDropListener({
+      elementRef: conversationRef,
+      handler: handleDrop,
     })
-  }
+    return () => {
+      log.debug('drag: unregister')
+      runtime.setDropListener(null)
+    }
+  }, [])
 
   const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
@@ -223,48 +227,59 @@ export default function MessageListAndComposer({ accountId, chat }: Props) {
         return
       }
 
+      // TODO this function pretty much never works, because of this condition.
+      // trying to focus the composer while a dialog is open
+      // is impossible, because the dialog will keep focus inside of it.
+      //
+      // The condition was probably meant to be the opposite
+      // (i.e. do nothing if a dialog is open),
+      // but it only incidentally fixed the bug that it was intended to fix
+      // (https://github.com/deltachat/deltachat-desktop/issues/3286),
+      // while at the same time breaking the function.
+      //
+      // However, we probably should not fix this function
+      // and remove it instead, for accessibility reasons, laid out here:
+      // https://github.com/deltachat/deltachat-desktop/issues/4590.
+      //
+      // The same goes for the check in
+      // `ComposerMessageInput.componentDidUpdate`.
       if (!hasOpenDialogs) {
         return
       }
 
       e.preventDefault()
       e.stopPropagation()
-      messageInputRef?.current?.focus()
+
+      // Only one of these is actually rendered at any given moment.
+      regularMessageInputRef.current?.focus()
+      editMessageInputRef.current?.focus()
+
       return false
     },
     [hasOpenDialogs]
   )
 
-  const onSelectionChange = () => {
-    const selection = window.getSelection()
-
-    if (
-      selection?.type === 'Caret' ||
-      (selection?.type === 'Range' && selection.rangeCount > 0)
-    )
-      return
-
-    messageInputRef?.current?.focus()
-  }
-
-  const onEscapeKeyUp = (ev: KeyboardEvent) => {
+  const onEscapeKeyUp = useCallback((ev: KeyboardEvent) => {
     if (ev.code === 'Escape') {
-      messageInputRef?.current?.focus()
+      // Only one of these is actually rendered at any given moment.
+      regularMessageInputRef.current?.focus()
+      editMessageInputRef.current?.focus()
     }
-  }
+  }, [])
 
   useEffect(() => {
     window.addEventListener('mouseup', onMouseUp)
-    document.addEventListener('selectionchange', onSelectionChange)
     window.addEventListener('keyup', onEscapeKeyUp)
-    messageInputRef?.current?.focus()
+
+    // Only one of these is actually rendered at any given moment.
+    regularMessageInputRef.current?.focus()
+    editMessageInputRef.current?.focus()
 
     return () => {
       window.removeEventListener('mouseup', onMouseUp)
-      document.removeEventListener('selectionchange', onSelectionChange)
       window.removeEventListener('keyup', onEscapeKeyUp)
     }
-  }, [onMouseUp])
+  }, [onMouseUp, onEscapeKeyUp])
 
   const settingsStore = useSettingsStore()[0]
   // If you want to update this, don't forget to update
@@ -278,33 +293,46 @@ export default function MessageListAndComposer({ accountId, chat }: Props) {
       className='message-list-and-composer'
       style={style}
       ref={conversationRef}
-      onDrop={onDrop.bind({ props: { chat } })}
       onDragOver={onDragOver}
     >
       <div className='message-list-and-composer__message-list'>
-        <RecoverableCrashScreen reset_on_change_key={chat.id}>
-          <ReactionsBarProvider>
-            <MessageList
-              accountId={accountId}
-              chat={chat}
-              refComposer={refComposer}
-            />
-          </ReactionsBarProvider>
-        </RecoverableCrashScreen>
+        <MessageListMemoized
+          accountId={accountId}
+          chat={chat}
+          refComposer={refComposer}
+          messageListStore={messageListStore}
+          messageListState={messageListState}
+          fetchMoreBottom={fetchMoreBottom}
+          fetchMoreTop={fetchMoreTop}
+        />
       </div>
       <Composer
         ref={refComposer}
         selectedChat={chat}
         isContactRequest={chat.isContactRequest}
-        isProtectionBroken={chat.isProtectionBroken}
-        messageInputRef={messageInputRef}
+        regularMessageInputRef={regularMessageInputRef}
+        editMessageInputRef={editMessageInputRef}
         draftState={draftState}
+        draftIsLoading={draftIsLoading}
         updateDraftText={updateDraftText}
+        onSelectReplyToShortcut={onSelectReplyToShortcut}
         removeQuote={removeQuote}
         addFileToDraft={addFileToDraft}
         removeFile={removeFile}
-        clearDraft={clearDraft}
+        clearDraftState={clearDraftState}
+        setDraftState={setDraftState}
+        messageCache={messageListState.messageCache}
       />
     </div>
   )
 }
+
+const MessageListMemoized = React.memo(
+  (args: Parameters<typeof MessageList>[0]) => (
+    <RecoverableCrashScreen reset_on_change_key={args.chat.id}>
+      <ReactionsBarProvider>
+        <MessageList {...args} />
+      </ReactionsBarProvider>
+    </RecoverableCrashScreen>
+  )
+)

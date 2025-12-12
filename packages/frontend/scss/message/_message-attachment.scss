@@ -1,13 +1,30 @@
+@use '../mixins';
+@use '../variables';
+// "Has content above" selector
+// (i.e. author title, "Forwarded" indicator, quote).
+//
+// Note that `.can-hide` means `display: none;`
+// only on non-experimental themes.
+// But TBH we don't care about the other themes too much.
+@mixin attachment-has-content-above {
+  // Has a preceding element
+  *:not(.can-hide) + &,
+  // Has a parent that has a preceding element
+  .msg-container *:not(.can-hide) + * & {
+    @content;
+  }
+}
+
 .message-attachment-media {
-  @include button-reset;
+  @include mixins.button-reset;
   display: block;
 
   // Entirely to ensure that images are centered if they aren't full width of bubble
   text-align: center;
   position: relative;
 
-  margin-left: calc(-1 * var(--msg-container-padding-horizontal));
-  margin-right: calc(-1 * var(--msg-container-padding-horizontal));
+  margin-inline-start: calc(-1 * var(--msg-container-padding-horizontal));
+  margin-inline-end: calc(-1 * var(--msg-container-padding-horizontal));
   width: calc(100% + 2 * var(--msg-container-padding-horizontal));
   margin-top: calc(-1 * var(--msg-container-padding-top));
   margin-bottom: -12px;
@@ -27,11 +44,13 @@
    * The same goes for `.quoted-image`.
    */
   & > .attachment-content {
-    object-fit: scale-down;
+    object-fit: cover;
     object-position: center;
-    height: 200px;
-    max-width: 100%;
-    min-width: 80px;
+    max-width: 450px;
+    min-width: 200px;
+    &.sticker {
+      min-width: auto;
+    }
 
     // The padding on the bottom of the bubble produces 4 extra pixels of space at the
     //   bottom, so this doesn't match up with the padding numbers above.
@@ -40,12 +59,11 @@
     // redundant with attachment-container, but we get cursor flashing on move otherwise
     cursor: pointer;
 
-    &.portrait {
-      height: 300px;
-    }
     &.video-content {
+      height: 350px;
       min-width: 300px;
       background-color: black;
+      object-fit: scale-down;
     }
   }
 
@@ -68,7 +86,7 @@
 
       height: 36px;
       width: 36px;
-      @include color-svg('./images/play.svg', var(--videoPlayBtnIcon));
+      @include mixins.color-svg('./images/play.svg', var(--videoPlayBtnIcon));
     }
   }
 
@@ -78,15 +96,25 @@
     border-bottom-right-radius: 0px;
   }
 
-  &.content-above {
+  @include attachment-has-content-above {
     margin-top: 4px;
     border-top-left-radius: 0px;
     border-top-right-radius: 0px;
   }
 }
+@media (max-width: variables.$breakpoint-messagelist) {
+  .message-attachment-media {
+    & > .attachment-content {
+      max-width: 100%;
+      &.portrait {
+        max-width: 100%;
+      }
+    }
+  }
+}
 
 .message-attachment-broken-media {
-  @include button-reset;
+  @include mixins.button-reset;
   display: block;
 
   font-size: 11px;
@@ -112,13 +140,13 @@
     margin-bottom: 5px;
   }
 
-  &.content-above {
+  @include attachment-has-content-above {
     margin-top: 6px;
   }
 }
 
 .message-attachment-generic {
-  @include button-reset;
+  @include mixins.button-reset;
 
   display: flex;
   flex-direction: row;
@@ -127,7 +155,7 @@
     padding-bottom: 6px;
   }
 
-  &.content-above {
+  @include attachment-has-content-above {
     padding-top: 4px;
   }
 
@@ -135,8 +163,8 @@
     background: url('./images/file-gradient.svg') no-repeat center;
     height: 44px;
     width: 56px;
-    margin-left: -13px;
-    margin-right: -14px;
+    margin-inline-start: -13px;
+    margin-inline-end: -14px;
     margin-bottom: -4px;
 
     // So we can center the extension text inside this icon
@@ -153,8 +181,8 @@
       // Along with flow layout in parent item, centers text
       text-align: center;
       width: 25px;
-      margin-left: auto;
-      margin-right: auto;
+      margin-inline-start: auto;
+      margin-inline-end: auto;
 
       // We don't have much room for text here, cut it off without ellipse
       overflow-x: hidden;
@@ -168,7 +196,7 @@
 
   & > .text-part {
     flex-grow: 1;
-    margin-left: 8px;
+    margin-inline-start: 8px;
     // The width of the icon plus our 8px margin
     max-width: calc(100% - 37px);
 

@@ -10,7 +10,7 @@ type Props = {
   description?: string
   disabled?: boolean
   disabledValue?: boolean
-  callback?: () => void
+  callback?: (updatedValue: boolean) => void
 }
 
 /*
@@ -24,26 +24,31 @@ export default function DesktopSettingsSwitch({
   disabledValue,
   callback,
 }: Props) {
-  const settingsStore = useSettingsStore()[0]!
+  const settingsStore = useSettingsStore()[0]
 
+  const disabledFinal: boolean = disabled || settingsStore == null
   const value =
-    disabled === true && typeof disabledValue !== 'undefined'
+    disabledFinal === true && typeof disabledValue !== 'undefined'
       ? disabledValue
-      : settingsStore.desktopSettings[settingsKey] === true
+      : settingsStore?.desktopSettings[settingsKey] === true
 
   return (
     <SettingsSwitch
       label={label}
       description={description}
       value={value}
-      onChange={() => {
-        SettingsStoreInstance.effect.setDesktopSetting(
+      onChange={async () => {
+        if (settingsStore == null) {
+          return
+        }
+        const newValue = !settingsStore.desktopSettings[settingsKey]
+        await SettingsStoreInstance.effect.setDesktopSetting(
           settingsKey,
-          !settingsStore.desktopSettings[settingsKey]
+          newValue
         )
-        callback?.()
+        callback?.(newValue)
       }}
-      disabled={disabled}
+      disabled={disabledFinal}
     />
   )
 }

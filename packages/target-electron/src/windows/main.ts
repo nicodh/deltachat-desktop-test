@@ -1,10 +1,5 @@
 import debounce from 'debounce'
-import electron, {
-  BrowserWindow,
-  Rectangle,
-  session,
-  systemPreferences,
-} from 'electron'
+import electron, { BrowserWindow, Rectangle, session } from 'electron'
 import { isAbsolute, join, sep } from 'path'
 import { platform } from 'os'
 import { fileURLToPath } from 'url'
@@ -118,7 +113,12 @@ export function init(options: { hidden: boolean }) {
   window.on('resize', saveBounds)
 
   window.once('show', () => {
-    mainWindow.webContents.setZoomFactor(DesktopSettings.state.zoomFactor)
+    if (DesktopSettings.state.zoomFactor !== undefined) {
+      // apply existing legacy zoomFactor once
+      mainWindow.webContents.setZoomFactor(DesktopSettings.state.zoomFactor)
+      // we don't save or read zoomFactor from settings any more
+      DesktopSettings.update({ zoomFactor: undefined })
+    }
   })
   window.on('close', () => {})
   window.on('blur', () => {
@@ -164,21 +164,11 @@ export function init(options: { hidden: boolean }) {
     }
   }
   window.webContents.session.setPermissionCheckHandler((_wc, permission) => {
-    if (systemPreferences.getMediaAccessStatus && permission === 'media') {
-      return systemPreferences.getMediaAccessStatus('camera') === 'granted'
-    }
-    // if (systemPreferences.getMediaAccessStatus && permission === "microphone") {
-    //   return systemPreferences.getMediaAccessStatus("microphone") === "granted"
-    // }
     return permission_handler(permission as any)
   })
   window.webContents.session.setPermissionRequestHandler(
     (_wc, permission, callback) => {
-      if (systemPreferences.askForMediaAccess && permission === 'media') {
-        systemPreferences.askForMediaAccess('camera').then(callback)
-      } else {
-        callback(permission_handler(permission))
-      }
+      callback(permission_handler(permission))
     }
   )
 
@@ -221,7 +211,12 @@ export function init(options: { hidden: boolean }) {
 
       log.errorWithoutStackTrace(
         'tried to access path that is not whitelisted',
-        pathname
+        {
+          pathname,
+          ALLOWED_ACCOUNT_FOLDERS,
+          accountPaths: getAccountsPath(),
+          filePathWhiteList: window?.filePathWhiteList,
+        }
       )
       return callback({ cancel: true })
     }

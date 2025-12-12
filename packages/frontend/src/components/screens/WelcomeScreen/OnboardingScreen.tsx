@@ -12,11 +12,15 @@ type Props = {
   onExitWelcomeScreen: () => Promise<void>
   onNextStep: () => void
   onUnSelectAccount: () => Promise<void>
-  onClickBackButton: () => Promise<void>
+  onClose: () => Promise<void>
   selectedAccountId: number
-  showBackButton: boolean
   hasConfiguredAccounts: boolean
 }
+
+/**
+ * Sub component of WelcomeScreen shows the choice
+ * to create a new account or to use an existing one
+ */
 
 export default function OnboardingScreen(props: Props) {
   const tx = useTranslationFunction()
@@ -28,10 +32,15 @@ export default function OnboardingScreen(props: Props) {
     })
   }
 
+  const onSubmit = (event: React.FormEvent) => {
+    event.preventDefault()
+    props.onNextStep()
+  }
+
   return (
     <>
       <DialogHeader
-        onClickBack={props.showBackButton ? props.onClickBackButton : undefined}
+        onClose={props.hasConfiguredAccounts ? props.onClose : undefined}
         title={
           props.hasConfiguredAccounts
             ? tx('add_account')
@@ -40,31 +49,35 @@ export default function OnboardingScreen(props: Props) {
       />
       <DialogBody>
         <DialogContent>
-          <div className={styles.welcomeScreenSection}>
-            <img
-              className={styles.welcomeScreenImage}
-              src='./images/intro1.png'
-            />
-            <p className={styles.welcomeScreenTitle}>
-              {tx('welcome_chat_over_email')}
-            </p>
-          </div>
-          <div className={styles.welcomeScreenButtonGroup}>
-            <Button
-              className={styles.welcomeScreenButton}
-              styling='primary'
-              onClick={props.onNextStep}
-            >
-              {tx('onboarding_create_instant_account')}
-            </Button>
-            <Button
-              className={styles.welcomeScreenButton}
-              styling='secondary'
-              onClick={onAlreadyHaveAccount}
-            >
-              {tx('onboarding_alternative_logins')}
-            </Button>
-          </div>
+          <form onSubmit={onSubmit}>
+            <div className={styles.welcomeScreenSection}>
+              <img
+                className={styles.welcomeScreenImage}
+                src='./images/intro1.png'
+              />
+              <p className={styles.welcomeScreenTitle}>
+                {tx('welcome_chat_over_email')}
+              </p>
+            </div>
+            <div className={styles.welcomeScreenButtonGroup}>
+              <Button
+                type='submit'
+                className={styles.welcomeScreenButton}
+                styling='primary'
+                data-testid='create-account-button'
+              >
+                {tx('onboarding_create_instant_account')}
+              </Button>
+              <Button
+                className={styles.welcomeScreenButton}
+                onClick={onAlreadyHaveAccount}
+                data-testid='have-account-button'
+              >
+                {tx('onboarding_alternative_logins')}
+              </Button>
+            </div>
+            <br /> {/* space after buttons */}
+          </form>
         </DialogContent>
       </DialogBody>
     </>
