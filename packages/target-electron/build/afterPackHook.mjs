@@ -23,6 +23,7 @@ import { env } from 'process'
  *
  * Main Responsibilities:
  * - Clean up unneeded native prebuilds for other architectures (reduces bundle size)
+ * - Make sure the user presence addon made it into the package
  * - Package MSVC redistributables for Windows builds
  * - Copy map XDC files to the correct location in the packaged app
  * - Apply Electron security fuses to harden the application
@@ -66,6 +67,10 @@ export default async context => {
     '/app.asar.unpacked/node_modules/@deltachat'
   )
 
+  // check that the user presence addon is there
+  // ---------------------------------------------------------------------------------
+  assertUserPresenceAddonIsPackaged(resources_dir, context, isMacBuild)
+
   // delete not needed prebuilds
   // ---------------------------------------------------------------------------------
   if (!env['NO_ASAR'] && existsSync(prebuild_dir)) {
@@ -90,6 +95,46 @@ export default async context => {
   if (!env['SKIP_FUSES']) {
     await setFuses(context)
   }
+}
+
+/**
+ * `native-dist/` is built by `pnpm native:build`, which `pnpm build` on purpose
+ * does not run. Without the addon the app still starts and user presence just
+ * reports `unsupported`, which no one would notice in a release build - so fail
+ * here instead of shipping an app that never asks.
+ *
+ * Set `SKIP_USER_PRESENCE_ADDON` to package without it, e.g. when building for
+ * a platform whose addon can not be compiled on the current machine.
+ */
+function assertUserPresenceAddonIsPackaged(resources_dir, context, isMacBuild) {
+  if (env['SKIP_USER_PRESENCE_ADDON']) {
+    console.log('skipping the user presence addon check')
+    return
+  }
+
+  const platform = isMacBuild ? 'darwin' : context.electronPlatformName
+  if (platform !== 'darwin' && platform !== 'win32') {
+    // the addon is only built for macOS and Windows
+    return
+  }
+
+  // macOS ships one binary for both architectures
+  const fileName =
+    platform === 'darwin'
+      ? 'os-auth.darwin.node'
+      : `os-auth.win32-${convertArch(context.arch)}.node`
+
+  const locations = [
+    join(resources_dir, 'app.asar.unpacked', 'native-dist', fileName),
+    join(resources_dir, 'app', 'native-dist', fileName),
+  ]
+
+  if (!locations.some(location => existsSync(location))) {
+    throw new Error(
+      `${fileName} is missing from the package, run "pnpm native:build" before packaging. Looked in:\n${locations.join('\n')}`
+    )
+  }
+  console.log(`user presence addon is packaged (${fileName})`)
 }
 
 async function packageMSVCRedist(context) {
