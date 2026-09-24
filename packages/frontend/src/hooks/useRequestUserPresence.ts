@@ -3,6 +3,8 @@ import { useCallback } from 'react'
 import { getLogger } from '@deltachat-desktop/shared/logger'
 import { runtime } from '@deltachat-desktop/runtime-interface'
 
+import type { UserPresenceStatus } from '@deltachat-desktop/runtime-interface'
+
 import useToast from './useToast'
 import useTranslationFunction from './useTranslationFunction'
 
@@ -29,7 +31,16 @@ export default function useRequestUserPresence() {
     /** @param reason what is being authorized, macOS shows it as
      * "<app> is trying to <reason>", so keep it a verb phrase */
     async (reason: string): Promise<boolean> => {
-      const status = await runtime.requestUserPresence(reason)
+      let status: UserPresenceStatus
+      try {
+        status = await runtime.requestUserPresence(reason)
+      } catch (error) {
+        // a broken mechanism must not lock the user out of their own data,
+        // so this is treated like a platform that can not ask at all
+        log.error('requestUserPresence failed, continuing unguarded', error)
+        return true
+      }
+
       switch (status) {
         case 'authenticated':
           return true

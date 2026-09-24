@@ -158,10 +158,12 @@ The main process log tells apart the cases where no prompt appears:
 | `missing window handle`                                    | the window handle did not reach the addon |
 
 Whether the addon loads at all can be checked without the app, but the prompt
-itself can not - without a window handle it answers `missing window handle`:
+itself can not - without a window handle it answers `missing window handle`.
+`checkUserPresenceSupport` also says why it can not ask, for example
+`NotConfiguredForUser`:
 
 ```sh
-node -e "require('./native-dist/os-auth.win32-x64.node').isUserPresenceSupported().then(console.log)"
+node -e "require('./native-dist/os-auth.win32-x64.node').checkUserPresenceSupport().then(console.log)"
 ```
 
 ## Checking the platform code without those platforms

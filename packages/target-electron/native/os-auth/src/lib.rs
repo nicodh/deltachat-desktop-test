@@ -39,11 +39,37 @@ impl UserPresenceOutcome {
   }
 }
 
-/// Whether the current device can ask for user presence at all. False means the
-/// feature is not offered (no Touch ID / no Hello / no PIN configured / Linux).
+#[napi(object)]
+pub struct UserPresenceSupport {
+  /// whether this device can ask for user presence at all
+  pub supported: bool,
+  /// why it can not, for logging only
+  pub detail: Option<String>,
+}
+
+impl UserPresenceSupport {
+  /// only used by the platform implementations
+  #[allow(dead_code)]
+  fn supported() -> Self {
+    Self {
+      supported: true,
+      detail: None,
+    }
+  }
+
+  fn unsupported(detail: impl std::fmt::Display) -> Self {
+    Self {
+      supported: false,
+      detail: Some(detail.to_string()),
+    }
+  }
+}
+
+/// Whether the current device can ask for user presence (Touch ID or account
+/// password on macOS, Windows Hello on Windows), and if not, why not.
 #[napi]
-pub async fn is_user_presence_supported() -> bool {
-  imp::is_supported().await
+pub async fn check_user_presence_support() -> UserPresenceSupport {
+  imp::check_support().await
 }
 
 /// Shows the system authentication prompt.
@@ -79,8 +105,11 @@ mod imp {
     unsafe { LAContext::new() }
   }
 
-  pub async fn is_supported() -> bool {
-    unsafe { new_context().canEvaluatePolicy_error(POLICY) }.is_ok()
+  pub async fn check_support() -> UserPresenceSupport {
+    match unsafe { new_context().canEvaluatePolicy_error(POLICY) } {
+      Ok(()) => UserPresenceSupport::supported(),
+      Err(error) => UserPresenceSupport::unsupported(error.localizedDescription()),
+    }
   }
 
   pub async fn request(reason: String, _window_handle: Option<Vec<u8>>) -> UserPresenceOutcome {
@@ -161,15 +190,20 @@ mod imp {
     let _ = unsafe { RoInitialize(RO_INIT_MULTITHREADED) };
   }
 
-  pub async fn is_supported() -> bool {
+  pub async fn check_support() -> UserPresenceSupport {
     init_apartment();
     let availability = match UserConsentVerifier::CheckAvailabilityAsync() {
       Ok(operation) => operation.await,
-      Err(_) => return false,
+      Err(error) => return UserPresenceSupport::unsupported(error),
     };
-    availability
-      .map(|availability| availability == UserConsentVerifierAvailability::Available)
-      .unwrap_or(false)
+    match availability {
+      Ok(availability) if availability == UserConsentVerifierAvailability::Available => {
+        UserPresenceSupport::supported()
+      }
+      // DeviceNotPresent, NotConfiguredForUser, DisabledByPolicy, DeviceBusy
+      Ok(availability) => UserPresenceSupport::unsupported(format!("{availability:?}")),
+      Err(error) => UserPresenceSupport::unsupported(error),
+    }
   }
 
   pub async fn request(reason: String, window_handle: Option<Vec<u8>>) -> UserPresenceOutcome {
@@ -233,8 +267,8 @@ mod imp {
 mod imp {
   use super::*;
 
-  pub async fn is_supported() -> bool {
-    false
+  pub async fn check_support() -> UserPresenceSupport {
+    UserPresenceSupport::unsupported("not implemented for this platform")
   }
 
   pub async fn request(_reason: String, _window_handle: Option<Vec<u8>>) -> UserPresenceOutcome {

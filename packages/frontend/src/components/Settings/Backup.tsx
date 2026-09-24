@@ -18,6 +18,7 @@ import Dialog, {
 import useTranslationFunction from '../../hooks/useTranslationFunction'
 import useDialog from '../../hooks/dialog/useDialog'
 import useConfirmationDialog from '../../hooks/dialog/useConfirmationDialog'
+import useRequestUserPresence from '../../hooks/useRequestUserPresence'
 
 import type { DcEventType } from '@deltachat/jsonrpc-client'
 import { LastUsedSlot, rememberLastUsedPath } from '../../utils/lastUsedPaths'
@@ -32,6 +33,7 @@ export default function Backup() {
   const accountId = selectedAccountId()
   const { openDialog, closeDialog } = useDialog()
   const openConfirmationDialog = useConfirmationDialog()
+  const requestUserPresence = useRequestUserPresence()
 
   const onBackupExport = useCallback(async () => {
     const confirmed = await openConfirmationDialog({
@@ -40,6 +42,12 @@ export default function Backup() {
     })
 
     if (confirmed) {
+      // the backup file contains the whole account, so make sure it is the
+      // device owner who asks for it
+      if (!(await requestUserPresence(tx('user_presence_export_backup')))) {
+        return
+      }
+
       let destination: string
       if (runtime.getRuntimeInfo().target === 'browser') {
         destination = '<BROWSER>' // gets replaced internally by browser runtime
@@ -98,7 +106,14 @@ export default function Backup() {
         emitter.off('ImexFileWritten', listenForOutputFile)
       }
     }
-  }, [accountId, closeDialog, openConfirmationDialog, openDialog, tx])
+  }, [
+    accountId,
+    closeDialog,
+    openConfirmationDialog,
+    openDialog,
+    requestUserPresence,
+    tx,
+  ])
 
   return (
     <SettingsButton onClick={onBackupExport}>

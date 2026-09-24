@@ -18,8 +18,10 @@ const nativeDistDir = join(__dirname, '..', 'native-dist').replace(
 
 type NativeOutcome = { status: UserPresenceStatus; error?: string }
 
+type NativeSupport = { supported: boolean; detail?: string }
+
 type OsAuthAddon = {
-  isUserPresenceSupported(): Promise<boolean>
+  checkUserPresenceSupport(): Promise<NativeSupport>
   requestUserPresence(
     reason: string,
     windowHandle: Buffer | null
@@ -64,9 +66,14 @@ export async function isUserPresenceSupported(): Promise<boolean> {
     return false
   }
   try {
-    return await addon.isUserPresenceSupported()
+    const support = await addon.checkUserPresenceSupport()
+    if (!support.supported) {
+      // e.g. DeviceNotPresent, NotConfiguredForUser, DisabledByPolicy
+      log.info('user presence is not available', support.detail)
+    }
+    return support.supported
   } catch (error) {
-    log.error('isUserPresenceSupported failed', error)
+    log.error('checkUserPresenceSupport failed', error)
     return false
   }
 }

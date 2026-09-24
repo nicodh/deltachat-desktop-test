@@ -97,5 +97,8 @@
   },
   "user_presence_failed": {
     "message": "Authentication failed"
+  },
+  "user_presence_export_backup": {
+    "message": "export a backup"
   }
 }
