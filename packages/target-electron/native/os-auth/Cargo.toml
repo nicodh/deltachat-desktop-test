@@ -18,6 +18,9 @@ objc2 = "0.6"
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSError", "NSString"] }
 objc2-local-authentication = { version = "0.3", default-features = false, features = ["std", "block2", "LAContext", "LAError"] }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = { version = "5", default-features = false, features = ["tokio"] }
+
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-future = "0.3"
 windows = { version = "0.62", features = [

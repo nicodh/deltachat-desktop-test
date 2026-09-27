@@ -263,7 +263,93 @@ mod imp {
   }
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+#[cfg(target_os = "linux")]
+mod imp {
+  use super::*;
+
+  use std::collections::HashMap;
+  use zbus::zvariant::Value;
+  use zbus::{Connection, Proxy};
+
+  /// has to match the id of the policy file that is installed into
+  /// /usr/share/polkit-1/actions, see build/linux/
+  const ACTION_ID: &str = "chat.delta.desktop.user-presence";
+
+  /// polkit's AllowUserInteraction. Without it polkit only reports whether
+  /// authentication *would* be possible, which is how support is checked.
+  const ALLOW_USER_INTERACTION: u32 = 1;
+
+  /// `(is_authorized, is_challenge, details)`
+  type AuthorizationResult = (bool, bool, HashMap<String, String>);
+
+  async fn check_authorization(flags: u32) -> zbus::Result<AuthorizationResult> {
+    let connection = Connection::system().await?;
+    // identifying ourselves by bus name rather than by pid avoids the race
+    // where the pid gets reused while the user is typing their password
+    let bus_name = connection
+      .unique_name()
+      .map(|name| name.to_string())
+      .unwrap_or_default();
+    let subject = (
+      "system-bus-name",
+      HashMap::from([("name", Value::from(bus_name))]),
+    );
+
+    let authority = Proxy::new(
+      &connection,
+      "org.freedesktop.PolicyKit1",
+      "/org/freedesktop/PolicyKit1/Authority",
+      "org.freedesktop.PolicyKit1.Authority",
+    )
+    .await?;
+
+    authority
+      .call(
+        "CheckAuthorization",
+        &(subject, ACTION_ID, HashMap::<&str, &str>::new(), flags, ""),
+      )
+      .await
+  }
+
+  pub async fn check_support() -> UserPresenceSupport {
+    match check_authorization(0).await {
+      // authorized outright, or authentication is possible
+      Ok((true, _, _)) | Ok((false, true, _)) => UserPresenceSupport::supported(),
+      Ok((false, false, _)) => UserPresenceSupport::unsupported("not permitted by policy"),
+      Err(error) => UserPresenceSupport::unsupported(error),
+    }
+  }
+
+  pub async fn request(_reason: String, _window_handle: Option<Vec<u8>>) -> UserPresenceOutcome {
+    // polkit shows the message from the policy file, there is no place for a
+    // per call reason in its api
+    match check_authorization(ALLOW_USER_INTERACTION).await {
+      Ok((true, _, _)) => UserPresenceOutcome::new(STATUS_AUTHENTICATED),
+      // the agent asked and the user dismissed it
+      Ok((false, true, _)) => UserPresenceOutcome::new(STATUS_CANCELLED),
+      Ok((false, false, _)) => {
+        UserPresenceOutcome::with_error(STATUS_UNSUPPORTED, "not permitted by policy")
+      }
+      Err(error) => classify(error),
+    }
+  }
+
+  fn classify(error: zbus::Error) -> UserPresenceOutcome {
+    if let zbus::Error::MethodError(name, _, _) = &error {
+      if name.as_str() == "org.freedesktop.PolicyKit1.Error.Cancelled" {
+        return UserPresenceOutcome::new(STATUS_CANCELLED);
+      }
+    }
+    // Anything else means polkit can not help here: the action is not
+    // registered (AppImage, flatpak), polkit is missing, no system bus. None
+    // of that is the user failing to authenticate, and none of it should lock
+    // them out of the action, so it is reported like a platform without a
+    // prompt. The reason ends up in the log.
+    UserPresenceOutcome::with_error(STATUS_UNSUPPORTED, error)
+  }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
 mod imp {
   use super::*;
 

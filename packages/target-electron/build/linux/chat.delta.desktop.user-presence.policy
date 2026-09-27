@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD polkit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1.0/policyconfig.dtd">
+<!--
+  Registers the action the user presence check asks polkit for, see
+  native/README.md. It has to be installed into /usr/share/polkit-1/actions,
+  which only the deb package can do - the AppImage and flatpak builds fall back
+  to reporting "unsupported".
+
+  auth_self asks for the password of the user themselves, not for an
+  administrator password: this confirms who is sitting at the device, it does
+  not grant any privileges.
+-->
+<policyconfig>
+  <vendor>Delta Chat</vendor>
+  <vendor_url>https://delta.chat</vendor_url>
+  <action id="chat.delta.desktop.user-presence">
+    <description>Confirm it is you</description>
+    <message>Authentication is required to continue in Delta Chat</message>
+    <defaults>
+      <allow_any>auth_self</allow_any>
+      <allow_inactive>auth_self</allow_inactive>
+      <allow_active>auth_self</allow_active>
+    </defaults>
+  </action>
+</policyconfig>

@@ -113,16 +113,12 @@ function assertUserPresenceAddonIsPackaged(resources_dir, context, isMacBuild) {
   }
 
   const platform = isMacBuild ? 'darwin' : context.electronPlatformName
-  if (platform !== 'darwin' && platform !== 'win32') {
-    // the addon is only built for macOS and Windows
-    return
-  }
 
   // macOS ships one binary for both architectures
   const fileName =
     platform === 'darwin'
       ? 'os-auth.darwin.node'
-      : `os-auth.win32-${convertArch(context.arch)}.node`
+      : `os-auth.${platform}-${convertArch(context.arch)}.node`
 
   const locations = [
     join(resources_dir, 'app.asar.unpacked', 'native-dist', fileName),

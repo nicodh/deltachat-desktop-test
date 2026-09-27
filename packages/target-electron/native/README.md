@@ -8,6 +8,7 @@ unattended machine.
 | -------- | ------------------------------------------------------------------------------ |
 | macOS    | LocalAuthentication, `deviceOwnerAuthentication`: Touch ID or account password |
 | Windows  | Windows Hello via `IUserConsentVerifierInterop` (needs the window handle)      |
+| Linux    | polkit `auth_self`, deb package only (see below)                               |
 | others   | not implemented, every call reports `unsupported`                              |
 
 ## What it does not do
@@ -120,6 +121,46 @@ in place.
 On Windows ARM the build script picks `aarch64-pc-windows-msvc` and the loader
 looks for `os-auth.win32-arm64.node`; that architecture is not built by the CI,
 because no ARM artifacts are released.
+
+### Linux and polkit
+
+The Linux implementation asks polkit for the action
+`chat.delta.desktop.user-presence`, which the desktop's polkit agent turns into
+the familiar "Authentication is required" dialog. The action is declared with
+`auth_self`, so polkit asks for the password of the user themselves, not for an
+administrator password - this confirms who is at the device, it grants no
+privileges.
+
+polkit only knows actions that are registered system wide, in
+`/usr/share/polkit-1/actions/`. That is a real limitation:
+
+| package  | user presence                                 |
+| -------- | --------------------------------------------- |
+| deb      | works, the policy file is part of the package |
+| AppImage | `unsupported`, nothing can be installed there |
+| flatpak  | `unsupported`, the sandbox has no access      |
+
+The policy file lives in `build/linux/` and the deb puts it in place through an
+`fpm` rule in `build/gen-electron-builder-config.js`; dpkg removes it again on
+uninstall, no maintainer scripts involved.
+
+Two consequences of how polkit works:
+
+- The dialog shows the message from the policy file. polkit has no place for a
+  per call reason, so the `reason` argument is only used on macOS and Windows.
+- Translating that message means adding `<message xml:lang="..">` entries to the
+  policy file; it does not go through the app's translations.
+
+To try it out from a development build, where no package installed the file:
+
+```sh
+sudo cp packages/target-electron/build/linux/chat.delta.desktop.user-presence.policy \
+  /usr/share/polkit-1/actions/
+```
+
+polkit picks the file up without a restart. Without it every call answers
+`unsupported` with `Action chat.delta.desktop.user-presence is not registered`
+in the log, and the guarded action continues unguarded.
 
 ### Prerequisites on macOS
 

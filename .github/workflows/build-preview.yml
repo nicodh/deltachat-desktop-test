@@ -55,8 +55,11 @@ jobs:
           pnpm build
           pnpm run pack:generate_config
           pnpm run pack:patch-node-modules
-      # Native user presence addon (macOS and Windows only, see
-      # packages/target-electron/native/README.md)
+      # Native user presence addon, see packages/target-electron/native/README.md
+      - name: LINUX build native addon
+        if: runner.os == 'Linux'
+        working-directory: packages/target-electron
+        run: pnpm native:build
       - name: MAC build native addon
         if: runner.os == 'macOS'
         working-directory: packages/target-electron

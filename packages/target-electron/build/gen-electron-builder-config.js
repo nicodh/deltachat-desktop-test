@@ -216,6 +216,12 @@ build['toolsets'] = {
 
 build['deb'] = {
   packageName: previewBuild ? 'deltachat-desktop-preview' : 'deltachat-desktop',
+  // The user presence check asks polkit for this action, and polkit only
+  // knows actions that are registered system wide. Only the deb can put a
+  // file there; in the AppImage the check reports "unsupported".
+  fpm: [
+    'build/linux/chat.delta.desktop.user-presence.policy=/usr/share/polkit-1/actions/chat.delta.desktop.user-presence.policy',
+  ],
   depends: [
     'libasound2',
     'libgtk-3-0',
